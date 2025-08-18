@@ -7,19 +7,18 @@ import { io } from 'socket.io-client';
 // Configuration with STUN and TURN servers for reliability
 const configuration = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
     {
-      urls: "turn:openrelay.metered.ca:80",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject",
+      urls: [
+        "stun:stun.l.google.com:19302",             // Google STUN (backup)
+        "stun:global.xirsys.net",                   // Xirsys STUN
+        "turn:global.xirsys.net:3478?transport=udp",// Xirsys TURN UDP
+        "turn:global.xirsys.net:3478?transport=tcp",// Xirsys TURN TCP
+        "turns:global.xirsys.net:5349?transport=tcp"// Xirsys TURN over TLS
+      ],
+      username: "ahteshan", // your Xirsys ident
+      credential: "061c8212-7c6c-11f0-9de2-0242ac140002" // your Xirsys secret
     }
-  ],
+  ]
 };
 
 function Home() {
@@ -81,17 +80,15 @@ function Home() {
         });
 
         socket.current.on('answer', async (payload) => {
-            console.log("10. [CALLER] Received answer.");
             if (peerConnection.current && !peerConnection.current.remoteDescription) {
-                console.log("11. [CALLER] Setting remote description from answer.");
                 await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
                 
-                console.log(`Processing ${iceCandidateQueue.current.length} queued ICE candidates.`);
                 iceCandidateQueue.current.forEach(candidate => {
-                    peerConnection.current.addIceCandidate(candidate).catch(e => console.error("Error adding queued ICE candidate:", e));
+                    peerConnection.current.addIceCandidate(candidate).catch(e => console.error(e));
                 });
                 iceCandidateQueue.current = [];
 
+                setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }));
                 setIsCalling(false);
                 setInCall(true);
             }
@@ -99,13 +96,9 @@ function Home() {
 
         socket.current.on('ice-candidate', (payload) => {
             const candidate = new RTCIceCandidate(payload.route);
-            console.log("Received ICE candidate from peer.");
-            
             if (peerConnection.current && peerConnection.current.remoteDescription) {
-                console.log("...Remote description exists, adding candidate immediately.");
-                peerConnection.current.addIceCandidate(candidate).catch(e => console.error("Error adding received ice candidate", e));
+                peerConnection.current.addIceCandidate(candidate).catch(e => console.error(e));
             } else {
-                console.log("...Remote description NOT set, queueing candidate.");
                 iceCandidateQueue.current.push(candidate);
             }
         });
@@ -122,20 +115,11 @@ function Home() {
   }, [formData, navigate]);
 
   const createPeerConnection = () => {
-    console.log("Creating new RTCPeerConnection.");
     peerConnection.current = new RTCPeerConnection(configuration);
     iceCandidateQueue.current = [];
 
-    peerConnection.current.oniceconnectionstatechange = () => {
-        console.log(`[EVENT] ICE Connection State: ${peerConnection.current.iceConnectionState}`);
-    };
-    peerConnection.current.onsignalingstatechange = () => {
-        console.log(`[EVENT] Signaling State: ${peerConnection.current.signalingState}`);
-    };
-
     peerConnection.current.onicecandidate = (event) => {
         if (event.candidate) {
-            console.log("2. [LOCAL] Generated ICE candidate, sending to peer.");
             const targetId = target?.id || answer?.caller?.id;
             if (targetId) {
                 socket.current.emit('ice-candidate', { target: targetId, route: event.candidate });
@@ -144,7 +128,6 @@ function Home() {
     };
 
     peerConnection.current.ontrack = (event) => {
-        console.log("✅ [SUCCESS] Remote stream received!");
         remoteVideo.current.srcObject = event.streams[0];
     };
 
@@ -155,14 +138,11 @@ function Home() {
 
   const createOffer = async ({ targetUser, user }) => {
     setTarget(user);
-    console.log("1. [CALLER] Initializing call.");
     createPeerConnection();
     
-    console.log("3. [CALLER] Creating offer.");
     const offer = await peerConnection.current.createOffer();
     await peerConnection.current.setLocalDescription(offer);
 
-    console.log("4. [CALLER] Sending offer to peer.");
     socket.current.emit('offer', { sdp: offer, target: targetUser, caller: { username: currentUser.username, id: socket.current.id } });
     setIsCalling(true);
   };
@@ -170,23 +150,18 @@ function Home() {
   const createAnswer = async ({ payload }) => {
     setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }));
     setAnswer(payload);
-    console.log("5. [CALLEE] Received offer, creating peer connection.");
     createPeerConnection();
     
-    console.log("6. [CALLEE] Setting remote description from offer.");
     await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
     
-    console.log(`Processing ${iceCandidateQueue.current.length} queued ICE candidates.`);
     iceCandidateQueue.current.forEach(candidate => {
-        peerConnection.current.addIceCandidate(candidate).catch(e => console.error("Error adding queued ICE candidate:", e));
+        peerConnection.current.addIceCandidate(candidate).catch(e => console.error(e));
     });
     iceCandidateQueue.current = [];
 
-    console.log("7. [CALLEE] Creating answer.");
     const answerSdp = await peerConnection.current.createAnswer();
     await peerConnection.current.setLocalDescription(answerSdp);
     
-    console.log("9. [CALLEE] Sending answer to peer.");
     socket.current.emit('answer', { target: payload.caller.id, sdp: answerSdp, caller: currentUser });
     setIncomingcall(false);
     setInCall(true);
@@ -223,7 +198,7 @@ function Home() {
         <section className="video-section">
           <div className='video'>
             <div className="local-video-container"><video ref={localVideo} autoPlay muted playsInline></video><div className="video-label">You</div></div>
-            <div className="remote-video-container"><video ref={remoteVideo} autoPlay playsInline></video><div className="video-label">Remote</div></div>
+            <div className="remote-video-container"><video ref={remoteVideo} autoPlay playsInline muted></video><div className="video-label">Remote</div></div>
           </div>
           <div className="video-controls">
             <button className='muteBtn' onClick={handleAudio}>{mute ? 'Unmute' : 'Mute'}</button>
