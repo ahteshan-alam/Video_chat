@@ -5,10 +5,15 @@ import './home.css'
 import { io } from 'socket.io-client'
 const configuration = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-  ],
+    { urls: "stun:stun.l.google.com:19302" },
+    {
+      urls: "turn:relay1.expressturn.com:3478",
+      username: "ef8T4kUOQ9vSz5Eb",
+      credential: "fF5GvMsvJxKjNp2h"
+    }
+  ]
 };
+
 
 function Home() {
   let [otherusers, setOtherusers] = useState([])
