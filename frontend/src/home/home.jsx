@@ -40,7 +40,7 @@ function Home() {
       .then((stream) => {
         localVideo.current.srcObject = stream
         localStream.current = stream
-        socket.current = io("http://localhost:2000/")
+        socket.current = io("https://video-chat-9zhu.onrender.com");
         socket.current.on('connect', () => {
           setCurrentUser({ username: formData.username, id: socket.current.id })
           socket.current.emit('new-user', { id: socket.current.id, formData })
