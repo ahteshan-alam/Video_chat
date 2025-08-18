@@ -5,14 +5,12 @@ import { Server } from 'socket.io'
 const app = express()
 app.use(cors())
 const server = createServer(app)
-const io = require("socket.io")(server, {
+const io = new Server(server, {
     cors: {
-      origin: ["https://videochater.netlify.app"], // your frontend domain
-      methods: ["GET", "POST"],
-      credentials: true
+        origin: "https://videochater.netlify.app",
+        methods: ["GET", "POST"]
     }
-  });
-  
+})
 
 let rooms = {};
 io.on("connection", (socket) => {
