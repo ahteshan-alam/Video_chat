@@ -6,21 +6,16 @@ import './home.css'
 import { io } from 'socket.io-client'
 const configuration = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
     {
-      urls: 'turn:openrelay.metered.ca:80',
-      username: 'openrelayproject',
-      credential: 'openrelayproject'
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443',
-      username: 'openrelayproject',
-      credential: 'openrelayproject'
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-      username: 'openrelayproject',
-      credential: 'openrelayproject'
+      urls: [
+        "stun:stun.l.google.com:19302",             // Google STUN (backup)
+        "stun:global.xirsys.net",                   // Xirsys STUN
+        "turn:global.xirsys.net:3478?transport=udp",// Xirsys TURN UDP
+        "turn:global.xirsys.net:3478?transport=tcp",// Xirsys TURN TCP
+        "turns:global.xirsys.net:5349?transport=tcp"// Xirsys TURN over TLS
+      ],
+      username: "ahteshan", // your Xirsys ident
+      credential: "061c8212-7c6c-11f0-9de2-0242ac140002" // your Xirsys secret
     }
   ]
 };
