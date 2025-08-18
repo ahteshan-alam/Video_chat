@@ -1,0 +1,175 @@
+/* Modern Dark Theme for Join Component */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.join {
+  min-height: 100vh;
+  background: #0a0a0f;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+  padding: 24px;
+  line-height: 1.6;
+}
+
+.join form {
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 16px;
+  padding: 48px 40px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 
+              0 10px 10px -5px rgba(0, 0, 0, 0.2);
+}
+
+.join label {
+  display: block;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.join input[type="text"] {
+  width: 100%;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  color: #f9fafb;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.join input[type="text"]::placeholder {
+  color: #6b7280;
+}
+
+.join input[type="text"]:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #374151;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.join input[type="text"]:hover:not(:focus) {
+  border-color: #4b5563;
+}
+
+.join button[type="submit"] {
+  width: 100%;
+  padding: 14px 16px;
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 8px;
+}
+
+.join button[type="submit"]:hover {
+  background: #2563eb;
+}
+
+.join button[type="submit"]:active {
+  background: #1d4ed8;
+  transform: translateY(1px);
+}
+
+.join button[type="submit"]:disabled {
+  background: #374151;
+  color: #6b7280;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Form validation styles */
+.join input[type="text"]:valid {
+  border-color: #059669;
+}
+
+.join input[type="text"]:invalid:not(:placeholder-shown) {
+  border-color: #dc2626;
+}
+
+/* Focus styles for accessibility */
+.join input[type="text"]:focus-visible,
+.join button[type="submit"]:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .join {
+    padding: 16px;
+  }
+  
+  .join form {
+    padding: 40px 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  .join {
+    padding: 12px;
+  }
+  
+  .join form {
+    padding: 32px 24px;
+  }
+  
+  .join input[type="text"] {
+    padding: 12px 14px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  .join button[type="submit"] {
+    padding: 12px 16px;
+  }
+}
+
+/* Loading state animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.join button[type="submit"]:disabled {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .join form {
+    border: 2px solid #6b7280;
+  }
+  
+  .join input[type="text"] {
+    border-width: 2px;
+  }
+  
+  .join input[type="text"]:focus {
+    border-width: 2px;
+  }
+}
