@@ -511,3 +511,80 @@ body {
   background: rgba(255, 255, 255, 0.3);
 }
 /* Add this CSS to your existing styles in home.css */
+@media (max-width: 480px) {
+  .App {
+    /* Reduce overall app padding for a more edge-to-edge feel */
+    padding: 10px;
+  }
+
+  .app-header h1 {
+    /* Make the main title slightly smaller on very narrow screens */
+    font-size: 1.7rem;
+  }
+
+  .video {
+    /* Adjust video container height for a better fit in portrait mode */
+    min-height: 300px;
+  }
+  
+  .local-video-container,
+  .remote-video-container {
+    /* Make the corners and borders a bit subtler */
+    border-radius: 15px;
+  }
+
+  .video-label {
+    /* Decrease font size and padding for the "You" and "Remote" labels */
+    font-size: 11px;
+    padding: 6px 12px;
+    top: 10px;
+    left: 10px;
+    border-radius: 15px;
+  }
+  
+  .remote-video-container .video-label {
+    /* Ensure the remote label stays on the right */
+    right: 10px;
+    left: auto;
+  }
+
+  .list-header p {
+    /* Smaller text for the "Online Users" header */
+    font-size: 16px;
+  }
+
+  /* --- Popup Adjustments --- */
+  .popup {
+    /* Reduce padding to give content more space */
+    padding: 30px 20px;
+    border-radius: 20px;
+  }
+
+  .popup h3 {
+    /* Smaller title font size in popups */
+    font-size: 20px;
+  }
+
+  .popup p {
+    /* Smaller paragraph font size in popups */
+    font-size: 14px;
+  }
+
+  .popup-actions {
+    /* Stack the action buttons vertically for easy tapping */
+    flex-direction: column;
+    width: 100%;
+    align-items: center;
+  }
+
+  .accept-btn,
+  .reject-btn,
+  .cancel-btn,
+  .ok-btn,
+  .retry-btn {
+    /* Make all popup buttons full-width for a consistent look */
+    width: 100%;
+    max-width: 250px; /* Optional: prevent buttons from being excessively wide */
+    font-size: 14px;
+  }
+}
