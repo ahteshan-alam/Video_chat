@@ -8,7 +8,7 @@ const server = createServer(app)
 
 const io = new Server(server, {
     cors: {
-        origin: "*",
+        origin: "https://videochater.netlify.app",
         methods: ["GET", "POST"]
     }
 })
