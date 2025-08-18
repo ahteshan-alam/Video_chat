@@ -5,9 +5,10 @@ import { Server } from 'socket.io'
 const app = express()
 app.use(cors())
 const server = createServer(app)
+
 const io = new Server(server, {
     cors: {
-        origin: "https://videochater.netlify.app",
+        origin: "*",
         methods: ["GET", "POST"]
     }
 })
