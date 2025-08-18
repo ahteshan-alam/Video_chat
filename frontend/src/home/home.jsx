@@ -1,16 +1,16 @@
-import 'webrtc-adapter'; // For browser compatibility
+import 'webrtc-adapter'; 
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './home.css';
 import { io } from 'socket.io-client';
 
-// Configuration with STUN and TURN servers for reliability
+
 const configuration = {
   iceServers: [
     {
       urls: [
-        "stun:stun.l.google.com:19302",             // Google STUN (backup)
-        "stun:global.xirsys.net",                   // Xirsys STUN
+        "stun:stun.l.google.com:19302",             
+        "stun:global.xirsys.net",                   
         "turn:global.xirsys.net:3478?transport=udp",// Xirsys TURN UDP
         "turn:global.xirsys.net:3478?transport=tcp",// Xirsys TURN TCP
         "turns:global.xirsys.net:5349?transport=tcp"// Xirsys TURN over TLS
