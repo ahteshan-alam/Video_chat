@@ -45,9 +45,10 @@ function Home() {
       .then((stream) => {
         localVideo.current.srcObject = stream
         localStream.current = stream
-        socket.current =  io("https://videochater-backend.onrender.com", {
-          transports: ["websocket"]
+        socket.current = io("https://videochater-backend.onrender.com", {
+          transports: ["polling", "websocket"]
         });
+
         socket.current.on('connect', () => {
           setCurrentUser({ username: formData.username, id: socket.current.id })
           socket.current.emit('new-user', { id: socket.current.id, formData })
@@ -250,40 +251,40 @@ function Home() {
 
 
   return (// Improved JSX structure for better positioning - keeping all your logic intact
-  <div className='App'>
-    <header className="app-header">
-      <h1>My Video Call App {currentUser.username}</h1>
-    </header>
-  
-    <main className="main-content">
-      <section className="video-section">
-        <div className='video'>
-          <div className="local-video-container">
-            <video ref={localVideo} autoPlay muted playsInline></video>
-            <div className="video-label">You</div>
+    <div className='App'>
+      <header className="app-header">
+        <h1>My Video Call App {currentUser.username}</h1>
+      </header>
+
+      <main className="main-content">
+        <section className="video-section">
+          <div className='video'>
+            <div className="local-video-container">
+              <video ref={localVideo} autoPlay muted playsInline></video>
+              <div className="video-label">You</div>
+            </div>
+
+            <div className="remote-video-container">
+              <video ref={remoteVideo} autoPlay playsInline></video>
+              <div className="video-label">Remote</div>
+            </div>
           </div>
-          
-          <div className="remote-video-container">
-            <video ref={remoteVideo} autoPlay playsInline></video>
-            <div className="video-label">Remote</div>
+
+          <div className="video-controls">
+            <button className='muteBtn' onClick={handleAudio}>mute</button>
+            <button className='muteBtn' onClick={handleVideo}>video</button>
+            {inCall && <button className='muteBtn end-call-btn' onClick={handleEnd}>end</button>}
           </div>
-        </div>
-        
-        <div className="video-controls">
-          <button className='muteBtn' onClick={handleAudio}>mute</button>
-          <button className='muteBtn' onClick={handleVideo}>video</button>
-          {inCall && <button className='muteBtn end-call-btn' onClick={handleEnd}>end</button>}
-        </div>
-      </section>
-  
-      <aside className="sidebar">
-        <div className='list'>
-          <div className="list-header">
-            <p>Online Users ({otherusers.length})</p>
-          </div>
-          <div className="list-content">
-            <ul>
-              {otherusers.length > 0 ? otherusers.map(user =>
+        </section>
+
+        <aside className="sidebar">
+          <div className='list'>
+            <div className="list-header">
+              <p>Online Users ({otherusers.length})</p>
+            </div>
+            <div className="list-content">
+              <ul>
+                {otherusers.length > 0 ? otherusers.map(user =>
                 (<li key={user.id} className="user-item">
                   <span className="user-info">
                     <span className="online-indicator"></span>
@@ -291,81 +292,81 @@ function Home() {
                   </span>
                   <button className="call-btn" onClick={() => createOffer({ targetUser: user.id, user: user })}>call</button>
                 </li>)
-              ) : (<li className="no-users">no users online</li>)}
-            </ul>
+                ) : (<li className="no-users">no users online</li>)}
+              </ul>
+            </div>
+          </div>
+        </aside>
+      </main>
+
+      {/* All your popups with improved structure */}
+      {incomingcall &&
+        <div className="popup-overlay">
+          <div className="popup incoming-call">
+            <div className="popup-icon">📞</div>
+            <h3>Incoming Call</h3>
+            <p>Call from <span className="caller-name">{answer.caller.username}</span></p>
+            <div className="popup-actions">
+              <button className="accept-btn" onClick={() => sendAnswer(answer)}>Accept</button>
+              <button className="reject-btn" onClick={handleRejectCall}>Reject</button>
+            </div>
           </div>
         </div>
-      </aside>
-    </main>
-  
-    {/* All your popups with improved structure */}
-    {incomingcall && 
-      <div className="popup-overlay">
-        <div className="popup incoming-call">
-          <div className="popup-icon">📞</div>
-          <h3>Incoming Call</h3>
-          <p>Call from <span className="caller-name">{answer.caller.username}</span></p>
-          <div className="popup-actions">
-            <button className="accept-btn" onClick={() => sendAnswer(answer)}>Accept</button>
-            <button className="reject-btn" onClick={handleRejectCall}>Reject</button>
+      }
+
+      {isCalling &&
+        <div className="popup-overlay">
+          <div className="popup calling">
+            <div className="calling-spinner"></div>
+            <h3>Calling...</h3>
+            <p>Calling <span className="target-name">{target.username}</span></p>
+            <div className="popup-actions">
+              <button className="cancel-btn" onClick={handleCancelCall}>cancel</button>
+            </div>
           </div>
         </div>
-      </div>
-    }
-  
-    {isCalling && 
-      <div className="popup-overlay">
-        <div className="popup calling">
-          <div className="calling-spinner"></div>
-          <h3>Calling...</h3>
-          <p>Calling <span className="target-name">{target.username}</span></p>
-          <div className="popup-actions">
-            <button className="cancel-btn" onClick={handleCancelCall}>cancel</button>
+      }
+
+      {userBusy &&
+        <div className="popup-overlay">
+          <div className="popup user-busy">
+            <div className="popup-icon">📵</div>
+            <h3>User Busy</h3>
+            <p>user busy in another call</p>
+            <div className="popup-actions">
+              <button className="ok-btn" onClick={() => setUserBusy(false)}>ok</button>
+            </div>
           </div>
         </div>
-      </div>
-    }
-  
-    {userBusy && 
-      <div className="popup-overlay">
-        <div className="popup user-busy">
-          <div className="popup-icon">📵</div>
-          <h3>User Busy</h3>
-          <p>user busy in another call</p>
-          <div className="popup-actions">
-            <button className="ok-btn" onClick={() => setUserBusy(false)}>ok</button>
+      }
+
+      {callReject &&
+        <div className="popup-overlay">
+          <div className="popup call-rejected">
+            <div className="popup-icon">❌</div>
+            <h3>Call Declined</h3>
+            <p>user rejected your call</p>
+            <div className="popup-actions">
+              <button className="ok-btn" onClick={() => { setCallReject(false), setTarget() }}>ok</button>
+              <button className="retry-btn" onClick={() => { createOffer({ targetUser: target.id, user: target }), setCallReject(false) }}>call Again</button>
+            </div>
           </div>
         </div>
-      </div>
-    }
-  
-    {callReject && 
-      <div className="popup-overlay">
-        <div className="popup call-rejected">
-          <div className="popup-icon">❌</div>
-          <h3>Call Declined</h3>
-          <p>user rejected your call</p>
-          <div className="popup-actions">
-            <button className="ok-btn" onClick={() => { setCallReject(false), setTarget() }}>ok</button>
-            <button className="retry-btn" onClick={() => { createOffer({ targetUser: target.id, user: target }), setCallReject(false) }}>call Again</button>
+      }
+
+      {callEnded &&
+        <div className="popup-overlay">
+          <div className="popup call-ended">
+            <div className="popup-icon">📴</div>
+            <h3>Call Ended</h3>
+            <p>call ended</p>
+            <div className="popup-actions">
+              <button className="ok-btn" onClick={() => setCallEnded(false)}>ok</button>
+            </div>
           </div>
         </div>
-      </div>
-    }
-  
-    {callEnded && 
-      <div className="popup-overlay">
-        <div className="popup call-ended">
-          <div className="popup-icon">📴</div>
-          <h3>Call Ended</h3>
-          <p>call ended</p>
-          <div className="popup-actions">
-            <button className="ok-btn" onClick={() => setCallEnded(false)}>ok</button>
-          </div>
-        </div>
-      </div>
-    }
-  </div>
+      }
+    </div>
   );
 }
 
