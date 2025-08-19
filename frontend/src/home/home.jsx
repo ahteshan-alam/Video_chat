@@ -6,29 +6,16 @@ import { io } from 'socket.io-client'
 const configuration = {
   iceServers: [
     {
-      urls: "stun:stun.relay.metered.ca:80",
-    },
-    {
-      urls: "turn:global.relay.metered.ca:80",
-      username: "3e9b8a4a2f0d8754562dd50d",
-      credential: "R+zbu6soyoArlQ/8",
-    },
-    {
-      urls: "turn:global.relay.metered.ca:80?transport=tcp",
-      username: "3e9b8a4a2f0d8754562dd50d",
-      credential: "R+zbu6soyoArlQ/8",
-    },
-    {
-      urls: "turn:global.relay.metered.ca:443",
-      username: "3e9b8a4a2f0d8754562dd50d",
-      credential: "R+zbu6soyoArlQ/8",
-    },
-    {
-      urls: "turns:global.relay.metered.ca:443?transport=tcp",
-      username: "3e9b8a4a2f0d8754562dd50d",
-      credential: "R+zbu6soyoArlQ/8",
-    },
-],
+      urls: [
+        "stun:stun.l.google.com:19302",
+        "stun:stun1.l.google.com:19302",
+        "stun:stun2.l.google.com:19302",
+        "stun:stun3.l.google.com:19302",
+        "stun:stun4.l.google.com:19302"
+      ]
+    }
+    // For higher reliability, you would add your TURN server credentials here
+  ]
 };
 
 function Home() {
