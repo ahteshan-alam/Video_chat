@@ -36,7 +36,6 @@ function Home() {
   let [inCall, setInCall] = useState(false)
   let [callReject, setCallReject] = useState(false)
   let [callEnded, setCallEnded] = useState(false)
-  let [needsUserAction, setNeedsUserAction] = useState(false) // NEW
 
   const location = useLocation()
   const formData = location.state?.formData
@@ -139,17 +138,10 @@ function Home() {
       })
   }, [])
 
-  // 🔹 Helper: handle remote stream autoplay safely
+  // 🔹 Always safe attach + play remote video
   const handleRemoteStream = (stream) => {
     if (remoteVideo.current) {
       remoteVideo.current.srcObject = stream;
-      const playPromise = remoteVideo.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(err => {
-          console.warn("Autoplay blocked, waiting for user gesture:", err);
-          setNeedsUserAction(true);
-        });
-      }
     }
   };
 
@@ -174,6 +166,8 @@ function Home() {
 
     peerConnection.current.ontrack = (event) => {
       handleRemoteStream(event.streams[0]);
+      // 👇 User clicked "Call" → safe to auto-play
+      remoteVideo.current?.play().catch(err => console.warn("Play failed:", err));
     }
 
     localStream.current.getTracks().forEach(track => {
@@ -206,6 +200,8 @@ function Home() {
 
     peerConnection.current.ontrack = (event) => {
       handleRemoteStream(event.streams[0]);
+      // 👇 User clicked "Accept" → safe to auto-play
+      remoteVideo.current?.play().catch(err => console.warn("Play failed:", err));
     }
 
     localStream.current.getTracks().forEach(track => {
@@ -269,17 +265,6 @@ function Home() {
     setInCall(false);
   }
 
-  const handleUserAction = () => {
-    if (remoteVideo.current) {
-      remoteVideo.current.play()
-        .then(() => {
-          console.log("Remote video started after user gesture ✅");
-          setNeedsUserAction(false);
-        })
-        .catch(err => console.error("Still blocked:", err));
-    }
-  }
-
   return (
     <div className='App'>
       <header className="app-header">
@@ -297,12 +282,6 @@ function Home() {
             <div className="remote-video-container">
               <video ref={remoteVideo} autoPlay playsInline></video>
               <div className="video-label">Remote</div>
-
-              {needsUserAction && (
-                <button onClick={handleUserAction} className="play-button">
-                  Start Remote Video
-                </button>
-              )}
             </div>
           </div>
 
