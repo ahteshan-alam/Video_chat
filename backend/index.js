@@ -20,8 +20,9 @@ const io = new Server(server, {
         credentials: true
     },
     transports: ['websocket', 'polling'],
-    pingTimeout: 60000,
-    pingInterval: 25000
+    // Add these two lines to make the connection more stable
+    pingTimeout: 60000, // How long to wait for a client's heartbeat before disconnecting (60 seconds)
+    pingInterval: 25000 // How often to send a heartbeat ping (25 seconds)
 });
 
 let rooms = {};
