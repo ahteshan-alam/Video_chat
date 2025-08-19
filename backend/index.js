@@ -1,3 +1,4 @@
+// Backend: server.js
 import express from 'express'
 import cors from 'cors'
 import { createServer } from 'http'
@@ -15,13 +16,6 @@ const io = new Server(server, {
 
 let rooms = {};
 io.on("connection", (socket) => {
-
-
-
-
-
-
-
     socket.on('new-user', ({ id, formData }) => {
         socket.room = formData.room
         socket.username = formData.username

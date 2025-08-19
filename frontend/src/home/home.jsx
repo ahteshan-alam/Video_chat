@@ -1,3 +1,4 @@
+// Frontend: Home.js
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './home.css'
@@ -13,6 +14,22 @@ const configuration = {
         "stun:stun3.l.google.com:19302",
         "stun:stun4.l.google.com:19302"
       ]
+    },
+    // Added TURN servers for better NAT traversal
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject"
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject"
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject"
     }
   ]
 };
@@ -69,10 +86,7 @@ function Home() {
 
         socket.current.on('offer', async (payload) => {
           console.log(`offer recieved from ${payload.caller.id} to ${payload.target}`)
-          if (inCall) {
-              socket.current.emit('userBusy', {target: payload.caller.id})
-              return;
-          }
+          // Removed redundant busy check and emit; server handles it
           if (payload.sdp) {
             candidatesQueue.current = [] 
             peerConnection.current = new RTCPeerConnection(configuration)
@@ -83,6 +97,7 @@ function Home() {
             }
             peerConnection.current.ontrack = (event) => {
               remoteVideo.current.srcObject = event.streams[0]
+              remoteVideo.current.play().catch(e => console.error('Autoplay error:', e));
               console.log('Remote tracks:', event.streams[0].getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted })));
             }
             peerConnection.current.onicecandidateerror = (e) => console.error('ICE error:', e);
@@ -128,6 +143,12 @@ function Home() {
             peerConnection.current.close();
           }
           localStream.current = null;
+          if (remoteVideo.current) {
+            remoteVideo.current.srcObject = null;
+          }
+          if (localVideo.current) {
+            localVideo.current.srcObject = null;
+          }
           setTarget(null)
           setInCall(false);
           peerConnection.current = null;
@@ -181,6 +202,7 @@ function Home() {
     }
     peerConnection.current.ontrack = (event) => {
       remoteVideo.current.srcObject = event.streams[0]
+      remoteVideo.current.play().catch(e => console.error('Autoplay error:', e));
       console.log('Remote tracks:', event.streams[0].getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted })));
     }
     peerConnection.current.onicecandidateerror = (e) => console.error('ICE error:', e);
@@ -258,6 +280,12 @@ function Home() {
     if (peerConnection.current) {
       peerConnection.current.close();
       peerConnection.current = null;
+    }
+    if (remoteVideo.current) {
+      remoteVideo.current.srcObject = null;
+    }
+    if (localVideo.current) {
+      localVideo.current.srcObject = null;
     }
     setTarget(null)
     setCallEnded(true)
