@@ -6,7 +6,13 @@ import { io } from 'socket.io-client'
 const configuration = {
   iceServers: [
     {
-      urls: "stun:stun.l.google.com:19302" // Simplified to Google STUN for testing; verify/revert to Xirsys if credentials are confirmed valid
+      urls: [
+        "stun:stun.l.google.com:19302",
+        "stun:stun1.l.google.com:19302",
+        "stun:stun2.l.google.com:19302",
+        "stun:stun3.l.google.com:19302",
+        "stun:stun4.l.google.com:19302"
+      ]
     }
   ]
 };
@@ -33,6 +39,7 @@ function Home() {
   const peerConnection = useRef()
   const candidatesQueue = useRef([]) // For queuing ICE candidates if remote description not set yet
   const navigate = useNavigate()
+  
   useEffect(() => {
     if (!formData) {
       navigate("/")
@@ -49,14 +56,11 @@ function Home() {
         })
         socket.current.on('user-joined', ({ message, members }) => {
           setOtherusers(members.filter((client) => client.id !== socket.current.id))
-
           console.log(message)
         })
         socket.current.on('welcome', ({ message, members }) => {
-
           console.log(message)
           setOtherusers(members.filter((client) => client.id !== socket.current.id))
-
         })
         socket.current.on("user-left", ({ message, members }) => {
           setOtherusers(members.filter(client => client.id !== socket.current.id))
@@ -65,9 +69,12 @@ function Home() {
 
         socket.current.on('offer', async (payload) => {
           console.log(`offer recieved from ${payload.caller.id} to ${payload.target}`)
+          if (inCall) {
+              socket.current.emit('userBusy', {target: payload.caller.id})
+              return;
+          }
           if (payload.sdp) {
-            // Create PC early and set remote description immediately
-            candidatesQueue.current = [] // Reset queue for new PC
+            candidatesQueue.current = [] 
             peerConnection.current = new RTCPeerConnection(configuration)
             peerConnection.current.onicecandidate = (event) => {
               if (event.candidate) {
@@ -76,14 +83,17 @@ function Home() {
             }
             peerConnection.current.ontrack = (event) => {
               remoteVideo.current.srcObject = event.streams[0]
-              // Log remote track states for debugging
-              console.log('Remote tracks:', event.streams[0].getTracks().map(t => ({kind: t.kind, enabled: t.enabled, muted: t.muted})));
+              console.log('Remote tracks:', event.streams[0].getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted })));
             }
             peerConnection.current.onicecandidateerror = (e) => console.error('ICE error:', e);
-            // Set remote description now (browser will buffer any early ICE candidates)
+            peerConnection.current.onconnectionstatechange = () => console.log('Connection state:', peerConnection.current.connectionState);
+            peerConnection.current.oniceconnectionstatechange = () => console.log('ICE connection state:', peerConnection.current.iceConnectionState);
+            peerConnection.current.onsignalingstatechange = () => console.log('Signaling state:', peerConnection.current.signalingState);
+            peerConnection.current.onicegatheringstatechange = () => console.log('ICE gathering state:', peerConnection.current.iceGatheringState);
+            
             await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-            await flushCandidatesQueue() // Flush any queued candidates (unlikely here)
-            // Store the payload for acceptance (includes caller info)
+            await flushCandidatesQueue() 
+            
             setPendingOffer(payload)
             setIncomingcall(true)
           }
@@ -99,7 +109,7 @@ function Home() {
           setIsCalling(false)
           setInCall(true)
           await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-          await flushCandidatesQueue() // Flush queued candidates after setting remote desc
+          await flushCandidatesQueue() 
         })
         socket.current.on('call_reject', () => {
           console.log('call reject')
@@ -110,25 +120,18 @@ function Home() {
           setIncomingcall(false)
         })
         socket.current.on('call_ended', () => {
-
           setCallEnded(true)
-          if (localStream) {
+          if (localStream.current) {
             localStream.current.getTracks().forEach(track => track.stop());
           }
-
-          // close peer connection
-          if (peerConnection) {
+          if (peerConnection.current) {
             peerConnection.current.close();
           }
-
-          // reset state
           localStream.current = null;
           setTarget(null)
           setInCall(false);
           peerConnection.current = null;
         })
-
-
 
         socket.current.on('ice-candidate', async (payload) => {
           if (peerConnection.current && peerConnection.current.remoteDescription) {
@@ -144,17 +147,10 @@ function Home() {
             socket.current.disconnect()
             socket.current.off()
           }
-
-
         }
       })
-
-
-
-
-
-
   }, [])
+  
   const flushCandidatesQueue = async () => {
     while (candidatesQueue.current.length > 0) {
       const candidate = candidatesQueue.current.shift();
@@ -166,9 +162,9 @@ function Home() {
       }
     }
   }
+  
   const createOffer = async ({ targetUser, user }) => {
     setTarget(user)
-
     console.log("sending offer to ", targetUser)
     setIsCalling(true)
     if (!localStream.current) {
@@ -176,7 +172,7 @@ function Home() {
       localStream.current = stream
       localVideo.current.srcObject = stream
     }
-    candidatesQueue.current = [] // Reset queue for new PC
+    candidatesQueue.current = [] 
     peerConnection.current = new RTCPeerConnection(configuration)
     peerConnection.current.onicecandidate = (event) => {
       if (event.candidate) {
@@ -185,10 +181,13 @@ function Home() {
     }
     peerConnection.current.ontrack = (event) => {
       remoteVideo.current.srcObject = event.streams[0]
-      // Log remote track states for debugging
-      console.log('Remote tracks:', event.streams[0].getTracks().map(t => ({kind: t.kind, enabled: t.enabled, muted: t.muted})));
+      console.log('Remote tracks:', event.streams[0].getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted })));
     }
     peerConnection.current.onicecandidateerror = (e) => console.error('ICE error:', e);
+    peerConnection.current.onconnectionstatechange = () => console.log('Connection state:', peerConnection.current.connectionState);
+    peerConnection.current.oniceconnectionstatechange = () => console.log('ICE connection state:', peerConnection.current.iceConnectionState);
+    peerConnection.current.onsignalingstatechange = () => console.log('Signaling state:', peerConnection.current.signalingState);
+    peerConnection.current.onicegatheringstatechange = () => console.log('ICE gathering state:', peerConnection.current.iceGatheringState);
     localStream.current.getTracks().forEach(track => {
       peerConnection.current.addTrack(track, localStream.current)
     })
@@ -198,9 +197,8 @@ function Home() {
 
     socket.current.emit('offer', { sdp: offer, target: targetUser, caller: { username: currentUser.username, id: socket.current.id } })
     console.log("sent offer to ", targetUser)
-
-
   }
+  
   const createAnswer = async () => {
     setCurrentUser(prev => ({ ...prev, partner: pendingOffer.caller.id }))
     if (!localStream.current) {
@@ -208,16 +206,16 @@ function Home() {
       localStream.current = stream
       localVideo.current.srcObject = stream
     }
-    // PC already exists and remote desc set; now add tracks and create answer
     localStream.current.getTracks().forEach(track => {
       peerConnection.current.addTrack(track, localStream.current)
     })
     const answer = await peerConnection.current.createAnswer()
     await peerConnection.current.setLocalDescription(answer)
-    await flushCandidatesQueue() // Just in case, though unlikely
+    await flushCandidatesQueue() 
     socket.current.emit('answer', { target: pendingOffer.caller.id, sdp: answer, caller: currentUser })
-    setPendingOffer(null) // Clear after use
+    setPendingOffer(null) 
   }
+  
   const sendAnswer = () => {
     createAnswer()
     setIncomingcall(false)
@@ -225,20 +223,23 @@ function Home() {
     console.log("call accepted")
     setCurrentUser(prev => ({ ...prev, partner: pendingOffer.caller.id }))
   }
+  
   const handleAudio = () => {
     mute ? (localStream.current.getAudioTracks().forEach(audioTrack => audioTrack.enabled = true), setMute(false)) : (localStream.current.getAudioTracks().forEach(audioTrack => audioTrack.enabled = false), setMute(true))
   }
+  
   const handleVideo = () => {
     pause ? (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = true), setPause(false)) : (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = false), setPause(true))
   }
+  
   const handleCancelCall = () => {
     setIsCalling(false)
-    socket.current.emit('call_canceled', { target, caller: socket.current.id })
+    socket.current.emit('call_canceled', { target: target.id, caller: socket.current.id })
     setTarget(null)
   }
+  
   const handleRejectCall = () => {
     setIncomingcall(false)
-    // Close the early-created PC on reject
     if (peerConnection.current) {
       peerConnection.current.close()
       peerConnection.current = null
@@ -246,139 +247,139 @@ function Home() {
     setPendingOffer(null)
     socket.current.emit('call_reject', ({ targetUser: pendingOffer.caller.id, callee: socket.current.id }))
   }
+  
   const handleEnd = () => {
-    setTarget(null)
     socket.current.emit('call_ended', { target: currentUser.partner, currentUser: currentUser.id })
     console.log("you are ending the call")
-    if (localStream) {
+    if (localStream.current) {
       localStream.current.getTracks().forEach(track => track.stop());
       localStream.current = null;
     }
-    if (peerConnection) {
+    if (peerConnection.current) {
       peerConnection.current.close();
       peerConnection.current = null;
     }
+    setTarget(null)
     setCallEnded(true)
     setInCall(false);
   }
 
   return (
-  <div className='App'>
-    <header className="app-header">
-      <h1>My Video Call App {currentUser.username}</h1>
-    </header>
-  
-    <main className="main-content">
-      <section className="video-section">
-        <div className='video'>
-          <div className="local-video-container">
-            <video ref={localVideo} autoPlay muted playsInline></video>
-            <div className="video-label">You</div>
+    <div className='App'>
+      <header className="app-header">
+        <h1>My Video Call App {currentUser.username}</h1>
+      </header>
+    
+      <main className="main-content">
+        <section className="video-section">
+          <div className='video'>
+            <div className="local-video-container">
+              <video ref={localVideo} autoPlay muted playsInline></video>
+              <div className="video-label">You</div>
+            </div>
+            
+            <div className="remote-video-container">
+              <video ref={remoteVideo} autoPlay playsInline></video>
+              <div className="video-label">Remote</div>
+            </div>
           </div>
           
-          <div className="remote-video-container">
-            <video ref={remoteVideo} autoPlay playsInline></video>
-            <div className="video-label">Remote</div>
+          <div className="video-controls">
+            <button className='muteBtn' onClick={handleAudio}>{mute ? 'Unmute' : 'Mute'}</button>
+            <button className='muteBtn' onClick={handleVideo}>{pause ? 'Play' : 'Pause'}</button>
+            {inCall && <button className='muteBtn end-call-btn' onClick={handleEnd}>End Call</button>}
+          </div>
+        </section>
+    
+        <aside className="sidebar">
+          <div className='list'>
+            <div className="list-header">
+              <p>Online Users ({otherusers.length})</p>
+            </div>
+            <div className="list-content">
+              <ul>
+                {otherusers.length > 0 ? otherusers.map(user =>
+                  (<li key={user.id} className="user-item">
+                    <span className="user-info">
+                      <span className="online-indicator"></span>
+                      <span className="username">{user.username}</span>
+                    </span>
+                    <button className="call-btn" onClick={() => createOffer({ targetUser: user.id, user: user })}>Call</button>
+                  </li>)
+                ) : (<li className="no-users">No users online</li>)}
+              </ul>
+            </div>
+          </div>
+        </aside>
+      </main>
+    
+      {/* All your popups with improved structure */}
+      {incomingcall &&
+        <div className="popup-overlay">
+          <div className="popup incoming-call">
+            <div className="popup-icon">📞</div>
+            <h3>Incoming Call</h3>
+            <p>Call from <span className="caller-name">{pendingOffer?.caller?.username}</span></p>
+            <div className="popup-actions">
+              <button className="accept-btn" onClick={sendAnswer}>Accept</button>
+              <button className="reject-btn" onClick={handleRejectCall}>Reject</button>
+            </div>
           </div>
         </div>
-        
-        <div className="video-controls">
-          <button className='muteBtn' onClick={handleAudio}>mute</button>
-          <button className='muteBtn' onClick={handleVideo}>video</button>
-          {inCall && <button className='muteBtn end-call-btn' onClick={handleEnd}>end</button>}
-        </div>
-      </section>
-  
-      <aside className="sidebar">
-        <div className='list'>
-          <div className="list-header">
-            <p>Online Users ({otherusers.length})</p>
-          </div>
-          <div className="list-content">
-            <ul>
-              {otherusers.length > 0 ? otherusers.map(user =>
-                (<li key={user.id} className="user-item">
-                  <span className="user-info">
-                    <span className="online-indicator"></span>
-                    <span className="username">{user.username}</span>
-                  </span>
-                  <button className="call-btn" onClick={() => createOffer({ targetUser: user.id, user: user })}>call</button>
-                </li>)
-              ) : (<li className="no-users">no users online</li>)}
-            </ul>
+      }
+    
+      {isCalling &&
+        <div className="popup-overlay">
+          <div className="popup calling">
+            <div className="calling-spinner"></div>
+            <h3>Calling...</h3>
+            <p>Calling <span className="target-name">{target?.username}</span></p>
+            <div className="popup-actions">
+              <button className="cancel-btn" onClick={handleCancelCall}>Cancel</button>
+            </div>
           </div>
         </div>
-      </aside>
-    </main>
-  
-    {/* All your popups with improved structure */}
-    {incomingcall && 
-      <div className="popup-overlay">
-        <div className="popup incoming-call">
-          <div className="popup-icon">📞</div>
-          <h3>Incoming Call</h3>
-          <p>Call from <span className="caller-name">{pendingOffer.caller.username}</span></p> {/* Use pendingOffer */}
-          <div className="popup-actions">
-            <button className="accept-btn" onClick={sendAnswer}>Accept</button> {/* Updated to use sendAnswer without param */}
-            <button className="reject-btn" onClick={handleRejectCall}>Reject</button>
+      }
+    
+      {userBusy &&
+        <div className="popup-overlay">
+          <div className="popup user-busy">
+            <div className="popup-icon">📵</div>
+            <h3>User Busy</h3>
+            <p>User is on another call.</p>
+            <div className="popup-actions">
+              <button className="ok-btn" onClick={() => setUserBusy(false)}>OK</button>
+            </div>
           </div>
         </div>
-      </div>
-    }
-  
-    {isCalling && 
-      <div className="popup-overlay">
-        <div className="popup calling">
-          <div className="calling-spinner"></div>
-          <h3>Calling...</h3>
-          <p>Calling <span className="target-name">{target.username}</span></p>
-          <div className="popup-actions">
-            <button className="cancel-btn" onClick={handleCancelCall}>cancel</button>
+      }
+    
+      {callReject &&
+        <div className="popup-overlay">
+          <div className="popup call-rejected">
+            <div className="popup-icon">❌</div>
+            <h3>Call Declined</h3>
+            <p>{target?.username} declined your call.</p>
+            <div className="popup-actions">
+              <button className="ok-btn" onClick={() => { setCallReject(false); setTarget(null); }}>OK</button>
+            </div>
           </div>
         </div>
-      </div>
-    }
-  
-    {userBusy && 
-      <div className="popup-overlay">
-        <div className="popup user-busy">
-          <div className="popup-icon">📵</div>
-          <h3>User Busy</h3>
-          <p>user busy in another call</p>
-          <div className="popup-actions">
-            <button className="ok-btn" onClick={() => setUserBusy(false)}>ok</button>
+      }
+    
+      {callEnded &&
+        <div className="popup-overlay">
+          <div className="popup call-ended">
+            <div className="popup-icon">📴</div>
+            <h3>Call Ended</h3>
+            <p>Your call has ended.</p>
+            <div className="popup-actions">
+              <button className="ok-btn" onClick={() => setCallEnded(false)}>OK</button>
+            </div>
           </div>
         </div>
-      </div>
-    }
-  
-    {callReject && 
-      <div className="popup-overlay">
-        <div className="popup call-rejected">
-          <div className="popup-icon">❌</div>
-          <h3>Call Declined</h3>
-          <p>user rejected your call</p>
-          <div className="popup-actions">
-            <button className="ok-btn" onClick={() => { setCallReject(false), setTarget() }}>ok</button>
-            <button className="retry-btn" onClick={() => { createOffer({ targetUser: target.id, user: target }), setCallReject(false) }}>call Again</button>
-          </div>
-        </div>
-      </div>
-    }
-  
-    {callEnded && 
-      <div className="popup-overlay">
-        <div className="popup call-ended">
-          <div className="popup-icon">📴</div>
-          <h3>Call Ended</h3>
-          <p>call ended</p>
-          <div className="popup-actions">
-            <button className="ok-btn" onClick={() => setCallEnded(false)}>ok</button>
-          </div>
-        </div>
-      </div>
-    }
-  </div>
+      }
+    </div>
   );
 }
 
