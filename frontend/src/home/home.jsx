@@ -1,241 +1,255 @@
+
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './home.css'
-import { io } from 'socket.io-client'
 
+import { io } from 'socket.io-client'
 const configuration = {
   iceServers: [
-    { urls: ["stun:stun.l.google.com:19302"] },
-    { urls: ["stun:global.xirsys.net"] },
-    { urls: ["turn:global.xirsys.net:3478?transport=udp"] },
-    { urls: ["turn:global.xirsys.net:3478?transport=tcp"] },
-    { urls: ["turns:global.xirsys.net:5349?transport=tcp"] }
-  ],
-  username: "ahteshan",
-  credential: "061c8212-7c6c-11f0-9de2-0242ac140002"
+    {
+      urls: [
+        "stun:stun.l.google.com:19302",             // Google STUN (backup)
+        "stun:global.xirsys.net",                   // Xirsys STUN
+        "turn:global.xirsys.net:3478?transport=udp",// Xirsys TURN UDP
+        "turn:global.xirsys.net:3478?transport=tcp",// Xirsys TURN TCP
+        "turns:global.xirsys.net:5349?transport=tcp"// Xirsys TURN over TLS
+      ],
+      username: "ahteshan", // your Xirsys ident
+      credential: "061c8212-7c6c-11f0-9de2-0242ac140002" // your Xirsys secret
+    }
+  ]
 };
 
+
 function Home() {
-  const log = (...args) => console.log("[DEBUG]", ...args);
-
-  let [otherusers, setOtherusers] = useState([]);
-  let [currentUser, setCurrentUser] = useState({});
-  let [incomingcall, setIncomingcall] = useState(false);
-  let [isCalling, setIsCalling] = useState(false);
-  let [userBusy, setUserBusy] = useState(false);
-  let [answer, setAnswer] = useState();
-  let [mute, setMute] = useState(false);
-  let [pause, setPause] = useState(false);
-  let [target, setTarget] = useState();
-  let [inCall, setInCall] = useState(false);
-  let [callReject, setCallReject] = useState(false);
-  let [callEnded, setCallEnded] = useState(false);
-
-  const location = useLocation();
-  const formData = location.state?.formData;
-  const localVideo = useRef();
-  const localStream = useRef();
-  const remoteVideo = useRef();
-  const socket = useRef();
-  const peerConnection = useRef();
-  const navigate = useNavigate();
-
+  let [otherusers, setOtherusers] = useState([])
+  let [currentUser, setCurrentUser] = useState({})
+  let [incomingcall, setIncomingcall] = useState(false)
+  let [isCalling, setIsCalling] = useState(false)
+  let [userBusy, setUserBusy] = useState(false)
+  let [answer, setAnswer] = useState()
+  let [mute, setMute] = useState(false)
+  let [pause, setPause] = useState(false)
+  let [target, setTarget] = useState()
+  let [inCall, setInCall] = useState(false)
+  let [callReject, setCallReject] = useState(false)
+  let [callEnded, setCallEnded] = useState(false)
+  const location = useLocation()
+  const formData = location.state?.formData
+  const localVideo = useRef()
+  const localStream = useRef()
+  const remoteVideo = useRef()
+  const socket = useRef()
+  const peerConnection = useRef()
+  const navigate = useNavigate()
   useEffect(() => {
     if (!formData) {
-      navigate("/");
+      navigate("/")
       return;
     }
-
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then((stream) => {
-        log("Local stream acquired:", stream);
-        localVideo.current.srcObject = stream;
-        localStream.current = stream;
-
+        localVideo.current.srcObject = stream
+        localStream.current = stream
         socket.current = io("https://video-chat-9zhu.onrender.com/");
         socket.current.on('connect', () => {
-          log("Socket connected:", socket.current.id);
-          setCurrentUser({ username: formData.username, id: socket.current.id });
-          socket.current.emit('new-user', { id: socket.current.id, formData });
-        });
-
-        // --- SOCKET EVENTS ---
+          setCurrentUser({ username: formData.username, id: socket.current.id })
+          socket.current.emit('new-user', { id: socket.current.id, formData })
+        })
         socket.current.on('user-joined', ({ message, members }) => {
-          log("[user-joined]", message, members);
-          setOtherusers(members.filter(c => c.id !== socket.current.id));
-        });
+          setOtherusers(members.filter((client) => client.id !== socket.current.id))
 
+          console.log(message)
+        })
         socket.current.on('welcome', ({ message, members }) => {
-          log("[welcome]", message, members);
-          setOtherusers(members.filter(c => c.id !== socket.current.id));
-        });
 
+          console.log(message)
+          setOtherusers(members.filter((client) => client.id !== socket.current.id))
+
+        })
         socket.current.on("user-left", ({ message, members }) => {
-          log("[user-left]", message, members);
-          setOtherusers(members.filter(c => c.id !== socket.current.id));
-        });
+          setOtherusers(members.filter(client => client.id !== socket.current.id))
+          console.log(message)
+        })
 
         socket.current.on('offer', (payload) => {
-          log("[offer received]", payload);
-          if (payload.sdp) setIncomingcall(true);
-          setAnswer(payload);
-        });
-
-        socket.current.on('answer', (payload) => {
-          log("[answer received]", payload);
-          setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }));
-          setIsCalling(false);
-          setInCall(true);
-
-          peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-            .then(() => log("Remote description set (answer)"))
-            .catch(err => log("Error setting remote description (answer):", err));
-        });
-
-        socket.current.on('ice-candidate', (payload) => {
-          log("[ice-candidate received]", payload);
-          if (peerConnection.current) {
-            peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.route))
-              .then(() => log("ICE candidate added"))
-              .catch(err => log("Error adding ICE candidate:", err));
+          console.log(`offer recieved from ${payload.caller.id} to ${payload.target}`)
+          if (payload.sdp) {
+            setIncomingcall(true)
           }
-        });
-
+          setAnswer(payload)
+        })
         socket.current.on('userBusy', ({ message }) => {
-          log("[userBusy]", message);
-          setUserBusy(true);
-          setIsCalling(false);
-          setTarget(null);
-        });
-
+          setUserBusy(true)
+          setIsCalling(false)
+          setTarget(null)
+          console.log(message)
+        })
+        socket.current.on('answer', (payload) => {
+          setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }))
+          setIsCalling(false)
+          setInCall(true)
+          peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+        })
         socket.current.on('call_reject', () => {
-          log("[call_reject]");
-          setIsCalling(false);
-          setCallReject(true);
-        });
-
+          console.log('call reject')
+          setIsCalling(false)
+          setCallReject(true)
+        })
         socket.current.on('call_cancel', () => {
-          log("[call_cancel]");
-          setIncomingcall(false);
-        });
-
+          setIncomingcall(false)
+        })
         socket.current.on('call_ended', () => {
-          log("[call_ended]");
-          setCallEnded(true);
 
-          if (localStream.current) localStream.current.getTracks().forEach(track => track.stop());
-          if (peerConnection.current) peerConnection.current.close();
+          setCallEnded(true)
+          if (localStream) {
+            localStream.current.getTracks().forEach(track => track.stop());
+          }
 
+          // close peer connection
+          if (peerConnection) {
+            peerConnection.current.close();
+          }
+
+          // reset state
           localStream.current = null;
-          setTarget(null);
+          setTarget(null)
           setInCall(false);
           peerConnection.current = null;
-        });
+        })
+
+
+
+        socket.current.on('ice-candidate', (payload) => {
+          if (peerConnection.current) {
+            peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.route))
+          }
+
+        })
 
         return () => {
           if (socket.current) {
-            socket.current.disconnect();
-            socket.current.off();
+            socket.current.disconnect()
+            socket.current.off()
           }
-        };
+
+
+        }
       })
-      .catch(err => log("Error getting user media:", err));
-  }, []);
 
+
+
+
+
+
+  }, [])
   const createOffer = async ({ targetUser, user }) => {
-    log("Creating offer for", targetUser, "calling", user);
-    setTarget(user);
-    setIsCalling(true);
+    setTarget(user)
 
+    console.log("sending offer to ", targetUser)
+    setIsCalling(true)
     if (!localStream.current) {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      localStream.current = stream;
-      localVideo.current.srcObject = stream;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+      localStream.current = stream
+      localVideo.current.srcObject = stream
     }
-
-    peerConnection.current = new RTCPeerConnection(configuration);
-
+    peerConnection.current = new RTCPeerConnection(configuration)
     peerConnection.current.onicecandidate = (event) => {
       if (event.candidate) {
-        log("Generated ICE candidate:", event.candidate);
-        socket.current.emit('ice-candidate', { target: targetUser, route: event.candidate });
+        socket.current.emit('ice-candidate', { target: targetUser, route: event.candidate })
       }
-    };
-
-    peerConnection.current.onconnectionstatechange = () => {
-      log("Peer connection state:", peerConnection.current.connectionState);
-    };
-
+    }
     peerConnection.current.ontrack = (event) => {
-      log("Remote track received:", event.streams);
-      remoteVideo.current.srcObject = event.streams[0];
-    };
-
+      remoteVideo.current.srcObject = event.streams[0]
+    }
     localStream.current.getTracks().forEach(track => {
-      log("Adding local track:", track.kind);
-      peerConnection.current.addTrack(track, localStream.current);
-    });
+      peerConnection.current.addTrack(track, localStream.current)
+    })
 
-    const offer = await peerConnection.current.createOffer();
-    await peerConnection.current.setLocalDescription(offer);
-    log("Local description set (offer):", offer);
+    const offer = await peerConnection.current.createOffer()
+    await peerConnection.current.setLocalDescription(offer)
 
-    socket.current.emit('offer', {
-      sdp: offer,
-      target: targetUser,
-      caller: { username: currentUser.username, id: socket.current.id }
-    });
-  };
+    socket.current.emit('offer', { sdp: offer, target: targetUser, caller: { username: currentUser.username, id: socket.current.id } })
+    console.log("sent offer to ", targetUser)
 
+
+  }
   const createAnswer = async ({ payload }) => {
-    log("Creating answer to offer from", payload.caller);
-    setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }));
-
+    setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }))
     if (!localStream.current) {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      localStream.current = stream;
-      localVideo.current.srcObject = stream;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+      localStream.current = stream
+      localVideo.current.srcObject = stream
     }
-
-    peerConnection.current = new RTCPeerConnection(configuration);
-
+    peerConnection.current = new RTCPeerConnection(configuration)
     peerConnection.current.onicecandidate = (event) => {
       if (event.candidate) {
-        log("Generated ICE candidate (answer):", event.candidate);
-        socket.current.emit('ice-candidate', { target: payload.caller.id, route: event.candidate });
+        socket.current.emit('ice-candidate', { target: payload.caller.id, route: event.candidate })
       }
-    };
-
-    peerConnection.current.onconnectionstatechange = () => {
-      log("Peer connection state:", peerConnection.current.connectionState);
-    };
-
+    }
     peerConnection.current.ontrack = (event) => {
-      log("Remote track received (answer side):", event.streams);
-      remoteVideo.current.srcObject = event.streams[0];
-    };
-
+      remoteVideo.current.srcObject = event.streams[0]
+    }
     localStream.current.getTracks().forEach(track => {
-      log("Adding local track:", track.kind);
-      peerConnection.current.addTrack(track, localStream.current);
-    });
+      peerConnection.current.addTrack(track, localStream.current)
+    })
+    await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+    const answer = await peerConnection.current.createAnswer()
+    await peerConnection.current.setLocalDescription(answer)
+    socket.current.emit('answer', { target: payload.caller.id, sdp: answer, caller: currentUser })
 
-    await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-    log("Remote description set (offer):", payload.sdp);
-
-    const answer = await peerConnection.current.createAnswer();
-    await peerConnection.current.setLocalDescription(answer);
-    log("Local description set (answer):", answer);
-
-    socket.current.emit('answer', { target: payload.caller.id, sdp: answer, caller: currentUser });
-  };
-
+  }
   const sendAnswer = (answer) => {
-    createAnswer({ payload: answer });
-    setIncomingcall(false);
-    setInCall(true);
-    log("Call accepted");
-  };
+
+    createAnswer({ payload: answer })
+
+    setIncomingcall(false)
+    setInCall(true)
+    console.log("call accepted")
+    setCurrentUser(prev => ({ ...prev, partner: answer.caller.id }))
+
+  }
+  const handleAudio = () => {
+    mute ? (localStream.current.getAudioTracks().forEach(audioTrack => audioTrack.enabled = true), setMute(false)) : (localStream.current.getAudioTracks().forEach(audioTrack => audioTrack.enabled = false), setMute(true))
+
+
+  }
+  const handleVideo = () => {
+    pause ? (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = true), setPause(false)) : (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = false), setPause(true))
+  }
+  const handleCancelCall = () => {
+    setIsCalling(false)
+    socket.current.emit('call_canceled', { target, caller: socket.current.id })
+    setTarget(null)
+  }
+  const handleRejectCall = () => {
+    setIncomingcall(false)
+
+    socket.current.emit('call_reject', ({ targetUser: answer.caller.id, callee: socket.current.id }))
+  }
+  const handleEnd = () => {
+    setTarget(null)
+    socket.current.emit('call_ended', { target: currentUser.partner, currentUser: currentUser.id })
+    console.log("you are ending the call")
+    if (localStream) {
+      localStream.current.getTracks().forEach(track => track.stop());
+      localStream.current = null;
+    }
+
+
+    if (peerConnection) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+
+
+
+    setCallEnded(true)
+    setInCall(false);
+
+
+
+  }
 
 
 
