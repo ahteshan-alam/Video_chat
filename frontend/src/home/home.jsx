@@ -1,22 +1,22 @@
-import 'webrtc-adapter'; 
+import 'webrtc-adapter'; // For browser compatibility
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './home.css';
 import { io } from 'socket.io-client';
 
-
+// Your Xirsys configuration
 const configuration = {
   iceServers: [
     {
       urls: [
-        "stun:stun.l.google.com:19302",             
-        "stun:global.xirsys.net",                   
-        "turn:global.xirsys.net:3478?transport=udp",// Xirsys TURN UDP
-        "turn:global.xirsys.net:3478?transport=tcp",// Xirsys TURN TCP
-        "turns:global.xirsys.net:5349?transport=tcp"// Xirsys TURN over TLS
+        "stun:stun.l.google.com:19302",
+        "stun:global.xirsys.net",
+        "turn:global.xirsys.net:3478?transport=udp",
+        "turn:global.xirsys.net:3478?transport=tcp",
+        "turns:global.xirsys.net:5349?transport=tcp"
       ],
-      username: "ahteshan", // your Xirsys ident
-      credential: "061c8212-7c6c-11f0-9de2-0242ac140002" // your Xirsys secret
+      username: "ahteshan",
+      credential: "061c8212-7c6c-11f0-9de2-0242ac140002"
     }
   ]
 };
@@ -42,7 +42,7 @@ function Home() {
   const remoteVideo = useRef();
   const socket = useRef();
   const peerConnection = useRef();
-  const iceCandidateQueue = useRef([]); // Queue for early ICE candidates
+  const iceCandidateQueue = useRef([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -56,10 +56,10 @@ function Home() {
         localVideo.current.srcObject = stream;
         localStream.current = stream;
         
-        socket.current = io("https://video-chat-9zhu.onrender.com/"); // Your backend URL
+        socket.current = io("https://video-chat-9zhu.onrender.com/");
 
-        // --- Socket Event Handlers ---
         socket.current.on('connect', () => {
+          console.log("Socket connected with ID:", socket.current.id);
           setCurrentUser({ username: formData.username, id: socket.current.id });
           socket.current.emit('new-user', { id: socket.current.id, formData });
         });
@@ -69,6 +69,7 @@ function Home() {
         socket.current.on("user-left", ({ members }) => setOtherusers(members.filter(client => client.id !== socket.current.id)));
 
         socket.current.on('offer', (payload) => {
+          console.log("5. [CALLEE] Received offer via socket.");
           if (payload.sdp) setIncomingcall(true);
           setAnswer(payload);
         });
@@ -80,15 +81,17 @@ function Home() {
         });
 
         socket.current.on('answer', async (payload) => {
+            console.log("10. [CALLER] Received answer via socket.");
             if (peerConnection.current && !peerConnection.current.remoteDescription) {
+                console.log("11. [CALLER] Setting remote description from answer.");
                 await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
                 
+                console.log(`[CALLER] Processing ${iceCandidateQueue.current.length} queued ICE candidates.`);
                 iceCandidateQueue.current.forEach(candidate => {
-                    peerConnection.current.addIceCandidate(candidate).catch(e => console.error(e));
+                    peerConnection.current.addIceCandidate(candidate).catch(e => console.error("Error adding queued ICE candidate:", e));
                 });
                 iceCandidateQueue.current = [];
 
-                setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }));
                 setIsCalling(false);
                 setInCall(true);
             }
@@ -96,9 +99,13 @@ function Home() {
 
         socket.current.on('ice-candidate', (payload) => {
             const candidate = new RTCIceCandidate(payload.route);
+            console.log("Received ICE candidate from peer.");
+            
             if (peerConnection.current && peerConnection.current.remoteDescription) {
-                peerConnection.current.addIceCandidate(candidate).catch(e => console.error(e));
+                console.log("...Remote description exists, adding candidate immediately.");
+                peerConnection.current.addIceCandidate(candidate).catch(e => console.error("Error adding received ice candidate", e));
             } else {
+                console.log("...Remote description NOT set, queueing candidate.");
                 iceCandidateQueue.current.push(candidate);
             }
         });
@@ -115,11 +122,20 @@ function Home() {
   }, [formData, navigate]);
 
   const createPeerConnection = () => {
+    console.log("[PC] Creating new RTCPeerConnection.");
     peerConnection.current = new RTCPeerConnection(configuration);
     iceCandidateQueue.current = [];
 
+    peerConnection.current.oniceconnectionstatechange = () => {
+        console.log(`[EVENT] ICE Connection State: ${peerConnection.current.iceConnectionState}`);
+    };
+    peerConnection.current.onsignalingstatechange = () => {
+        console.log(`[EVENT] Signaling State: ${peerConnection.current.signalingState}`);
+    };
+
     peerConnection.current.onicecandidate = (event) => {
         if (event.candidate) {
+            console.log("2. [LOCAL] Generated ICE candidate, sending to peer.");
             const targetId = target?.id || answer?.caller?.id;
             if (targetId) {
                 socket.current.emit('ice-candidate', { target: targetId, route: event.candidate });
@@ -128,9 +144,11 @@ function Home() {
     };
 
     peerConnection.current.ontrack = (event) => {
+        console.log("✅ [SUCCESS] Remote stream received!");
         remoteVideo.current.srcObject = event.streams[0];
     };
 
+    console.log("[PC] Adding local tracks to PeerConnection.");
     localStream.current.getTracks().forEach(track => {
         peerConnection.current.addTrack(track, localStream.current);
     });
@@ -138,11 +156,14 @@ function Home() {
 
   const createOffer = async ({ targetUser, user }) => {
     setTarget(user);
+    console.log("1. [CALLER] Initializing call.");
     createPeerConnection();
     
+    console.log("3. [CALLER] Creating offer.");
     const offer = await peerConnection.current.createOffer();
     await peerConnection.current.setLocalDescription(offer);
 
+    console.log("4. [CALLER] Sending offer to peer.");
     socket.current.emit('offer', { sdp: offer, target: targetUser, caller: { username: currentUser.username, id: socket.current.id } });
     setIsCalling(true);
   };
@@ -152,22 +173,27 @@ function Home() {
     setAnswer(payload);
     createPeerConnection();
     
+    console.log("6. [CALLEE] Setting remote description from offer.");
     await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
     
+    console.log(`[CALLEE] Processing ${iceCandidateQueue.current.length} queued ICE candidates.`);
     iceCandidateQueue.current.forEach(candidate => {
-        peerConnection.current.addIceCandidate(candidate).catch(e => console.error(e));
+        peerConnection.current.addIceCandidate(candidate).catch(e => console.error("Error adding queued ICE candidate:", e));
     });
     iceCandidateQueue.current = [];
 
+    console.log("7. [CALLEE] Creating answer.");
     const answerSdp = await peerConnection.current.createAnswer();
     await peerConnection.current.setLocalDescription(answerSdp);
     
+    console.log("9. [CALLEE] Sending answer to peer.");
     socket.current.emit('answer', { target: payload.caller.id, sdp: answerSdp, caller: currentUser });
     setIncomingcall(false);
     setInCall(true);
   };
 
   const handleCallCleanup = () => {
+    console.log("Cleaning up call resources.");
     if (peerConnection.current) {
       peerConnection.current.close();
       peerConnection.current = null;
@@ -185,7 +211,7 @@ function Home() {
     handleCallCleanup();
     setCallEnded(true);
   };
-
+  
   const handleAudio = () => { localStream.current.getAudioTracks().forEach(t => t.enabled = !t.enabled); setMute(p => !p); };
   const handleVideo = () => { localStream.current.getVideoTracks().forEach(t => t.enabled = !t.enabled); setPause(p => !p); };
   const handleCancelCall = () => { setIsCalling(false); socket.current.emit('call_canceled', { target, caller: socket.current.id }); setTarget(null); };
