@@ -6,17 +6,29 @@ import { io } from 'socket.io-client'
 const configuration = {
   iceServers: [
     {
-      urls: [
-        "stun:stun.l.google.com:19302",      // Google STUN (backup)
-        "stun:global.xirsys.net",           // Xirsys STUN
-        "turn:global.xirsys.net:3478?transport=udp",// Xirsys TURN UDP
-        "turn:global.xirsys.net:3478?transport=tcp",// Xirsys TURN TCP
-        "turns:global.xirsys.net:5349?transport=tcp"// Xirsys TURN over TLS
-      ],
-      username: "ahteshan",
-      credential: "9a4f0c38-7d2b-11f0-ab71-0242ac140006"
-    }
-  ]
+      urls: "stun:stun.relay.metered.ca:80",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:80",
+      username: "3e9b8a4a2f0d8754562dd50d",
+      credential: "R+zbu6soyoArlQ/8",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:80?transport=tcp",
+      username: "3e9b8a4a2f0d8754562dd50d",
+      credential: "R+zbu6soyoArlQ/8",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:443",
+      username: "3e9b8a4a2f0d8754562dd50d",
+      credential: "R+zbu6soyoArlQ/8",
+    },
+    {
+      urls: "turns:global.relay.metered.ca:443?transport=tcp",
+      username: "3e9b8a4a2f0d8754562dd50d",
+      credential: "R+zbu6soyoArlQ/8",
+    },
+],
 };
 
 function Home() {
