@@ -14,7 +14,9 @@ const configuration = {
         "stun:stun3.l.google.com:19302",
         "stun:stun4.l.google.com:19302"
       ]
-    }
+    },
+   
+   
   ]
 };
 
@@ -40,7 +42,6 @@ function Home() {
   const peerConnection = useRef()
   const candidatesQueue = useRef([]) // For queuing ICE candidates if remote description not set yet
   const navigate = useNavigate()
-  const remoteStreamSet = useRef(false); // Flag to prevent multiple srcObject sets
   
   useEffect(() => {
     if (!formData) {
@@ -81,10 +82,15 @@ function Home() {
               }
             }
             peerConnection.current.ontrack = (event) => {
-              if (!remoteStreamSet.current) {
-                remoteVideo.current.srcObject = event.streams[0]
-                remoteVideo.current.play().catch(e => console.error('Autoplay error:', e));
-                remoteStreamSet.current = true;
+              const stream = event.streams[0];
+              if (remoteVideo.current.srcObject !== stream) {
+                remoteVideo.current.srcObject = stream;
+                const playPromise = remoteVideo.current.play();
+                if (playPromise !== undefined) {
+                  playPromise.then(() => {
+                    console.log('Remote video playback started');
+                  }).catch(e => console.error('Autoplay error:', e));
+                }
               }
               console.log('Remote tracks:', event.streams[0].getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted })));
             }
@@ -140,7 +146,6 @@ function Home() {
           setTarget(null)
           setInCall(false);
           peerConnection.current = null;
-          remoteStreamSet.current = false; // Reset flag for next call
         })
 
         socket.current.on('ice-candidate', async (payload) => {
@@ -190,10 +195,15 @@ function Home() {
       }
     }
     peerConnection.current.ontrack = (event) => {
-      if (!remoteStreamSet.current) {
-        remoteVideo.current.srcObject = event.streams[0]
-        remoteVideo.current.play().catch(e => console.error('Autoplay error:', e));
-        remoteStreamSet.current = true;
+      const stream = event.streams[0];
+      if (remoteVideo.current.srcObject !== stream) {
+        remoteVideo.current.srcObject = stream;
+        const playPromise = remoteVideo.current.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            console.log('Remote video playback started');
+          }).catch(e => console.error('Autoplay error:', e));
+        }
       }
       console.log('Remote tracks:', event.streams[0].getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted })));
     }
@@ -250,7 +260,6 @@ function Home() {
     setIsCalling(false)
     socket.current.emit('call_canceled', { target: target.id, caller: socket.current.id })
     setTarget(null)
-    remoteStreamSet.current = false; // Reset flag
   }
   
   const handleRejectCall = () => {
@@ -261,7 +270,6 @@ function Home() {
     }
     setPendingOffer(null)
     socket.current.emit('call_reject', ({ targetUser: pendingOffer.caller.id, callee: socket.current.id }))
-    remoteStreamSet.current = false; // Reset flag
   }
   
   const handleEnd = () => {
@@ -284,7 +292,6 @@ function Home() {
     setTarget(null)
     setCallEnded(true)
     setInCall(false);
-    remoteStreamSet.current = false; // Reset flag for next call
   }
 
   return (
