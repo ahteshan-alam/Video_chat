@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './home.css'
@@ -7,19 +6,10 @@ import { io } from 'socket.io-client'
 const configuration = {
   iceServers: [
     {
-      urls: [
-        "stun:stun.l.google.com:19302",             // Google STUN (backup)
-        "stun:global.xirsys.net",                   // Xirsys STUN
-        "turn:global.xirsys.net:3478?transport=udp",// Xirsys TURN UDP
-        "turn:global.xirsys.net:3478?transport=tcp",// Xirsys TURN TCP
-        "turns:global.xirsys.net:5349?transport=tcp"// Xirsys TURN over TLS
-      ],
-      username: "ahteshan", // your Xirsys ident
-      credential: "061c8212-7c6c-11f0-9de2-0242ac140002" // your Xirsys secret
+      urls: "stun:stun.l.google.com:19302" // Simplified to Google STUN for testing; verify/revert to Xirsys if credentials are confirmed valid
     }
   ]
 };
-
 
 function Home() {
   let [otherusers, setOtherusers] = useState([])
@@ -27,7 +17,7 @@ function Home() {
   let [incomingcall, setIncomingcall] = useState(false)
   let [isCalling, setIsCalling] = useState(false)
   let [userBusy, setUserBusy] = useState(false)
-  let [answer, setAnswer] = useState()
+  let [pendingOffer, setPendingOffer] = useState(null) // New: store incoming offer for early PC setup
   let [mute, setMute] = useState(false)
   let [pause, setPause] = useState(false)
   let [target, setTarget] = useState()
@@ -41,6 +31,7 @@ function Home() {
   const remoteVideo = useRef()
   const socket = useRef()
   const peerConnection = useRef()
+  const candidatesQueue = useRef([]) // For queuing ICE candidates if remote description not set yet
   const navigate = useNavigate()
   useEffect(() => {
     if (!formData) {
@@ -72,12 +63,30 @@ function Home() {
           console.log(message)
         })
 
-        socket.current.on('offer', (payload) => {
+        socket.current.on('offer', async (payload) => {
           console.log(`offer recieved from ${payload.caller.id} to ${payload.target}`)
           if (payload.sdp) {
+            // Create PC early and set remote description immediately
+            candidatesQueue.current = [] // Reset queue for new PC
+            peerConnection.current = new RTCPeerConnection(configuration)
+            peerConnection.current.onicecandidate = (event) => {
+              if (event.candidate) {
+                socket.current.emit('ice-candidate', { target: payload.caller.id, route: event.candidate })
+              }
+            }
+            peerConnection.current.ontrack = (event) => {
+              remoteVideo.current.srcObject = event.streams[0]
+              // Log remote track states for debugging
+              console.log('Remote tracks:', event.streams[0].getTracks().map(t => ({kind: t.kind, enabled: t.enabled, muted: t.muted})));
+            }
+            peerConnection.current.onicecandidateerror = (e) => console.error('ICE error:', e);
+            // Set remote description now (browser will buffer any early ICE candidates)
+            await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+            await flushCandidatesQueue() // Flush any queued candidates (unlikely here)
+            // Store the payload for acceptance (includes caller info)
+            setPendingOffer(payload)
             setIncomingcall(true)
           }
-          setAnswer(payload)
         })
         socket.current.on('userBusy', ({ message }) => {
           setUserBusy(true)
@@ -85,11 +94,12 @@ function Home() {
           setTarget(null)
           console.log(message)
         })
-        socket.current.on('answer', (payload) => {
+        socket.current.on('answer', async (payload) => {
           setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }))
           setIsCalling(false)
           setInCall(true)
-          peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+          await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+          await flushCandidatesQueue() // Flush queued candidates after setting remote desc
         })
         socket.current.on('call_reject', () => {
           console.log('call reject')
@@ -120,11 +130,13 @@ function Home() {
 
 
 
-        socket.current.on('ice-candidate', (payload) => {
-          if (peerConnection.current) {
-            peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.route))
+        socket.current.on('ice-candidate', async (payload) => {
+          if (peerConnection.current && peerConnection.current.remoteDescription) {
+            await peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.route))
+          } else {
+            candidatesQueue.current.push(payload.route)
+            console.log('Queued ICE candidate as remote description not set yet')
           }
-
         })
 
         return () => {
@@ -143,6 +155,17 @@ function Home() {
 
 
   }, [])
+  const flushCandidatesQueue = async () => {
+    while (candidatesQueue.current.length > 0) {
+      const candidate = candidatesQueue.current.shift();
+      try {
+        await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+        console.log('Added queued ICE candidate')
+      } catch (e) {
+        console.error('Error adding queued ICE candidate:', e)
+      }
+    }
+  }
   const createOffer = async ({ targetUser, user }) => {
     setTarget(user)
 
@@ -153,6 +176,7 @@ function Home() {
       localStream.current = stream
       localVideo.current.srcObject = stream
     }
+    candidatesQueue.current = [] // Reset queue for new PC
     peerConnection.current = new RTCPeerConnection(configuration)
     peerConnection.current.onicecandidate = (event) => {
       if (event.candidate) {
@@ -161,7 +185,10 @@ function Home() {
     }
     peerConnection.current.ontrack = (event) => {
       remoteVideo.current.srcObject = event.streams[0]
+      // Log remote track states for debugging
+      console.log('Remote tracks:', event.streams[0].getTracks().map(t => ({kind: t.kind, enabled: t.enabled, muted: t.muted})));
     }
+    peerConnection.current.onicecandidateerror = (e) => console.error('ICE error:', e);
     localStream.current.getTracks().forEach(track => {
       peerConnection.current.addTrack(track, localStream.current)
     })
@@ -174,45 +201,32 @@ function Home() {
 
 
   }
-  const createAnswer = async ({ payload }) => {
-    setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }))
+  const createAnswer = async () => {
+    setCurrentUser(prev => ({ ...prev, partner: pendingOffer.caller.id }))
     if (!localStream.current) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
       localStream.current = stream
       localVideo.current.srcObject = stream
     }
-    peerConnection.current = new RTCPeerConnection(configuration)
-    peerConnection.current.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.current.emit('ice-candidate', { target: payload.caller.id, route: event.candidate })
-      }
-    }
-    peerConnection.current.ontrack = (event) => {
-      remoteVideo.current.srcObject = event.streams[0]
-    }
+    // PC already exists and remote desc set; now add tracks and create answer
     localStream.current.getTracks().forEach(track => {
       peerConnection.current.addTrack(track, localStream.current)
     })
-    await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
     const answer = await peerConnection.current.createAnswer()
     await peerConnection.current.setLocalDescription(answer)
-    socket.current.emit('answer', { target: payload.caller.id, sdp: answer, caller: currentUser })
-
+    await flushCandidatesQueue() // Just in case, though unlikely
+    socket.current.emit('answer', { target: pendingOffer.caller.id, sdp: answer, caller: currentUser })
+    setPendingOffer(null) // Clear after use
   }
-  const sendAnswer = (answer) => {
-
-    createAnswer({ payload: answer })
-
+  const sendAnswer = () => {
+    createAnswer()
     setIncomingcall(false)
     setInCall(true)
     console.log("call accepted")
-    setCurrentUser(prev => ({ ...prev, partner: answer.caller.id }))
-
+    setCurrentUser(prev => ({ ...prev, partner: pendingOffer.caller.id }))
   }
   const handleAudio = () => {
     mute ? (localStream.current.getAudioTracks().forEach(audioTrack => audioTrack.enabled = true), setMute(false)) : (localStream.current.getAudioTracks().forEach(audioTrack => audioTrack.enabled = false), setMute(true))
-
-
   }
   const handleVideo = () => {
     pause ? (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = true), setPause(false)) : (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = false), setPause(true))
@@ -224,8 +238,13 @@ function Home() {
   }
   const handleRejectCall = () => {
     setIncomingcall(false)
-
-    socket.current.emit('call_reject', ({ targetUser: answer.caller.id, callee: socket.current.id }))
+    // Close the early-created PC on reject
+    if (peerConnection.current) {
+      peerConnection.current.close()
+      peerConnection.current = null
+    }
+    setPendingOffer(null)
+    socket.current.emit('call_reject', ({ targetUser: pendingOffer.caller.id, callee: socket.current.id }))
   }
   const handleEnd = () => {
     setTarget(null)
@@ -235,25 +254,15 @@ function Home() {
       localStream.current.getTracks().forEach(track => track.stop());
       localStream.current = null;
     }
-
-
     if (peerConnection) {
       peerConnection.current.close();
       peerConnection.current = null;
     }
-
-
-
     setCallEnded(true)
     setInCall(false);
-
-
-
   }
 
-
-
-  return (// Improved JSX structure for better positioning - keeping all your logic intact
+  return (
   <div className='App'>
     <header className="app-header">
       <h1>My Video Call App {currentUser.username}</h1>
@@ -308,9 +317,9 @@ function Home() {
         <div className="popup incoming-call">
           <div className="popup-icon">📞</div>
           <h3>Incoming Call</h3>
-          <p>Call from <span className="caller-name">{answer.caller.username}</span></p>
+          <p>Call from <span className="caller-name">{pendingOffer.caller.username}</span></p> {/* Use pendingOffer */}
           <div className="popup-actions">
-            <button className="accept-btn" onClick={() => sendAnswer(answer)}>Accept</button>
+            <button className="accept-btn" onClick={sendAnswer}>Accept</button> {/* Updated to use sendAnswer without param */}
             <button className="reject-btn" onClick={handleRejectCall}>Reject</button>
           </div>
         </div>
