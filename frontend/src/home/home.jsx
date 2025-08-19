@@ -10,7 +10,6 @@ import "./home.css";
 const rtcConfig = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
-    // Xirsys example (replace with valid username/credential from your account)
     {
       urls: [
         "stun:global.xirsys.net",
@@ -18,11 +17,10 @@ const rtcConfig = {
         "turn:global.xirsys.net:3478?transport=tcp",
         "turns:global.xirsys.net:5349?transport=tcp",
       ],
-      username: "ahteshan",
-      credential: "061c8212-7c6c-11f0-9de2-0242ac140002",
+      username: "ahteshan", // <-- replace with valid account info
+      credential: "061c8212-7c6c-11f0-9de2-0242ac140002", // <-- replace with valid account info
     },
   ],
-  // On mobile this helps sometimes with aggressive NATs
   iceTransportPolicy: "all",
   bundlePolicy: "balanced",
 };
@@ -67,9 +65,7 @@ export default function Home() {
         video: true,
       });
       localStream.current = stream;
-      if (localVideo.current) {
-        localVideo.current.srcObject = stream;
-      }
+      if (localVideo.current) localVideo.current.srcObject = stream;
     }
   };
 
@@ -79,7 +75,6 @@ export default function Home() {
     log("Creating RTCPeerConnection");
     const peer = new RTCPeerConnection(rtcConfig);
 
-    // ICE candidates we generate go to the other peer
     peer.onicecandidate = (event) => {
       if (event.candidate && target?.id) {
         socket.current?.emit("ice-candidate", {
@@ -90,9 +85,7 @@ export default function Home() {
       }
     };
 
-    // Remote track handling
     peer.ontrack = (event) => {
-      // event.streams[0] is the remote MediaStream
       const remoteStream = event.streams[0];
       if (remoteVideo.current && remoteStream) {
         remoteVideo.current.srcObject = remoteStream;
@@ -101,20 +94,14 @@ export default function Home() {
       }
     };
 
-    // Connection state changes
-    peer.onconnectionstatechange = async () => {
+    peer.onconnectionstatechange = () => {
       log("Connection state:", peer.connectionState);
-      if (peer.connectionState === "failed") {
-        // Try an ICE restart
-        await attemptIceRestart();
-      }
+      if (peer.connectionState === "failed") attemptIceRestart();
     };
 
     peer.oniceconnectionstatechange = () => {
       log("ICE connection state:", peer.iceConnectionState);
-      if (peer.iceConnectionState === "failed") {
-        attemptIceRestart();
-      }
+      if (peer.iceConnectionState === "failed") attemptIceRestart();
     };
 
     pc.current = peer;
@@ -123,11 +110,8 @@ export default function Home() {
 
   const addLocalTracks = () => {
     if (!pc.current || !localStream.current) return;
-    // Avoid adding twice
     const senders = pc.current.getSenders();
-    const tracks = localStream.current.getTracks();
-
-    tracks.forEach((track) => {
+    localStream.current.getTracks().forEach((track) => {
       const already = senders.find((s) => s.track && s.track.kind === track.kind);
       if (!already) {
         pc.current.addTrack(track, localStream.current);
@@ -139,11 +123,10 @@ export default function Home() {
   const tryToPlayRemote = async () => {
     if (!remoteVideo.current) return;
     try {
-      // iOS/Android often requires muted=true to allow autoplay.
+      // mobile often needs muted for autoplay
       remoteVideo.current.muted = true;
       await remoteVideo.current.play();
-      // We keep remote muted until user taps “Unmute audio”
-      // That avoids autoplay policy issues across devices.
+      // we keep it muted until user taps “Unmute”
     } catch (err) {
       log("Remote video autoplay blocked, waiting for user gesture:", err);
       setNeedsUserGesture(true);
@@ -189,7 +172,6 @@ export default function Home() {
       log("Attempting ICE restart...");
       const offer = await pc.current.createOffer({ iceRestart: true });
       await pc.current.setLocalDescription(offer);
-      // Reuse existing signaling “offer” path:
       if (target?.id && currentUser?.username) {
         socket.current?.emit("offer", {
           sdp: offer,
@@ -212,9 +194,7 @@ export default function Home() {
     (async () => {
       await ensureLocalStream();
 
-      socket.current = io(SOCKET_URL, {
-        transports: ["websocket"],
-      });
+      socket.current = io(SOCKET_URL, { transports: ["websocket"] });
 
       socket.current.on("connect", () => {
         log("Socket connected:", socket.current.id);
@@ -237,24 +217,17 @@ export default function Home() {
         setOtherusers(members.filter((m) => m.id !== socket.current.id));
       });
 
-      // Incoming offer → show incoming dialog
       socket.current.on("offer", (payload) => {
-        log(
-          `Incoming offer from ${payload?.caller?.id} to ${payload?.target}`
-        );
+        log(`Incoming offer from ${payload?.caller?.id} to ${payload?.target}`);
         if (!payload?.sdp) return;
         setIncomingcall(true);
         setAnswerPayload(payload);
       });
 
-      // Answer to our offer
       socket.current.on("answer", async (payload) => {
         try {
           log("Received answer:", payload);
-          setCurrentUser((prev) => ({
-            ...prev,
-            partner: payload.caller.id,
-          }));
+          setCurrentUser((prev) => ({ ...prev, partner: payload.caller.id }));
           setIsCalling(false);
           setInCall(true);
 
@@ -265,7 +238,6 @@ export default function Home() {
           );
           log("Remote description set for answer");
 
-          // Flush any queued ICE candidates (remote’s) now that RD is set
           while (pendingRemoteCandidates.current.length) {
             const cand = pendingRemoteCandidates.current.shift();
             try {
@@ -306,10 +278,9 @@ export default function Home() {
         setTarget(null);
         setNeedsUserGesture(false);
         clearPeer();
-        cleanupMedia(); // stop and clear local stream too
+        cleanupMedia();
       });
 
-      // Remote ICE candidate arrives
       socket.current.on("ice-candidate", async (payload) => {
         const candidate = new RTCIceCandidate(payload.route);
         if (pc.current && pc.current.remoteDescription) {
@@ -320,14 +291,12 @@ export default function Home() {
             log("Failed to add ICE candidate:", e);
           }
         } else {
-          // Queue until we set remote description
           pendingRemoteCandidates.current.push(candidate);
           log("ICE candidate queued");
         }
       });
     })();
 
-    // Cleanup on unmount
     return () => {
       try {
         socket.current?.off();
@@ -384,10 +353,8 @@ export default function Home() {
         caller: { username: currentUser.username, id: socket.current.id },
       });
 
-      // After we accept, we’re in a call
       setInCall(true);
 
-      // Flush queued ICE candidates
       while (pendingRemoteCandidates.current.length) {
         const cand = pendingRemoteCandidates.current.shift();
         try {
@@ -437,7 +404,6 @@ export default function Home() {
       });
     }
     setTarget(null);
-    // do not tear down: user might call again right away
   };
 
   const handleRejectCall = () => {

@@ -10,162 +10,191 @@ const server = createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "https://videochater.netlify.app", // your frontend
+    origin: ["https://videochater.netlify.app", "http://localhost:5173", "http://localhost:3000"],
     methods: ["GET", "POST"],
   },
 });
 
-// Room structure: { roomId: [ {id, username, busy, partner} ] }
-let rooms = {};
+const rooms = {}; // room => [{ id, username, busy, partner }]
+
+const getMembers = (room) => rooms[room] || [];
+const setMembers = (room, arr) => (rooms[room] = arr);
 
 io.on("connection", (socket) => {
-  console.log("New connection:", socket.id);
+  socket.room = null;
+  socket.username = null;
 
-  // New user joins
+  const safeEmit = (to, evt, payload) => {
+    try {
+      io.to(to).emit(evt, payload);
+    } catch {}
+  };
+
   socket.on("new-user", ({ id, formData }) => {
-    socket.room = formData.room;
-    socket.username = formData.username;
+    const { room, username } = formData || {};
+    if (!room || !username) return;
 
-    if (!rooms[socket.room]) rooms[socket.room] = [];
+    socket.room = room;
+    socket.username = username;
 
-    // remove if exists already
-    rooms[socket.room] = rooms[socket.room].filter((c) => c.id !== socket.id);
+    if (!rooms[room]) rooms[room] = [];
 
-    rooms[socket.room].push({
-      id: socket.id,
-      username: formData.username,
-      busy: false,
-      partner: null,
-    });
+    // Prevent duplicates for same socket.id
+    rooms[room] = rooms[room].filter((c) => c.id !== socket.id);
+    rooms[room].push({ username, id: socket.id, busy: false, partner: null });
 
-    socket.join(socket.room);
-    const members = rooms[socket.room];
+    socket.join(room);
+    const members = getMembers(room);
 
-    // Notify others
-    socket.broadcast
-      .to(socket.room)
-      .emit("user-joined", { message: `${formData.username} joined`, members });
-
-    // Welcome the new user
-    io.to(id).emit("welcome", {
-      message: `${formData.username}, welcome to chat`,
+    socket.broadcast.to(room).emit("user-joined", {
+      message: `${username} joined`,
       members,
     });
-
-    console.log(`User ${formData.username} joined room ${socket.room}`);
+    safeEmit(id, "welcome", { message: `${username} welcome`, members });
   });
 
-  // Caller sends offer
   socket.on("offer", (payload) => {
-    const targetUser = rooms[socket.room]?.find(
-      (c) => c.id === payload.target
-    );
+    const room = socket.room;
+    if (!room || !rooms[room]) return;
 
-    if (targetUser && !targetUser.busy) {
-      io.to(payload.target).emit("offer", payload);
-    } else {
-      io.to(payload.caller.id).emit("userBusy", {
-        message: "User is busy in another call",
-      });
+    const { target, sdp, caller } = payload || {};
+    if (!target || !sdp || !caller) return;
+
+    if (target === socket.id) {
+      // self-call guard
+      safeEmit(caller.id, "userBusy", { message: "Cannot call yourself" });
+      return;
     }
+
+    const targetUser = rooms[room].find((c) => c.id === target);
+    if (!targetUser) {
+      safeEmit(caller.id, "userBusy", { message: `User not found or left` });
+      return;
+    }
+
+    if (targetUser.busy) {
+      safeEmit(caller.id, "userBusy", { message: `${target} is busy in another call` });
+      return;
+    }
+
+    io.to(target).emit("offer", payload);
   });
 
-  // Callee answers
   socket.on("answer", (payload) => {
-    const { caller, target } = payload;
+    const room = socket.room;
+    if (!room || !rooms[room]) return;
 
-    // update caller + callee as busy
-    rooms[socket.room]?.forEach((c) => {
-      if (c.id === caller.id || c.id === target) {
-        c.busy = true;
-      }
-      if (c.id === caller.id) c.partner = target;
-      if (c.id === target) c.partner = caller.id;
+    const { caller, target, sdp } = payload || {};
+    if (!caller || !target || !sdp) return;
+
+    // mark both users busy + partner
+    rooms[room].forEach((c) => {
+      if (c.id === caller.id || c.id === target) c.busy = true;
     });
 
-    io.to(target).emit("answer", payload);
+    const callerClient = rooms[room].find((c) => c.id === caller.id);
+    const calleeClient = rooms[room].find((c) => c.id === target);
+
+    if (callerClient && calleeClient) {
+      callerClient.partner = calleeClient.id;
+      calleeClient.partner = callerClient.id;
+    }
+
+    safeEmit(target, "answer", payload);
   });
 
-  // ICE candidate relay
   socket.on("ice-candidate", (payload) => {
-    io.to(payload.target).emit("ice-candidate", payload);
+    const { target, route } = payload || {};
+    if (!target || !route) return;
+    safeEmit(target, "ice-candidate", payload);
   });
 
-  // Call reject
   socket.on("call_reject", ({ targetUser, callee }) => {
-    rooms[socket.room]?.forEach((c) => {
+    const room = socket.room;
+    if (!room || !rooms[room]) return;
+
+    rooms[room].forEach((c) => {
       if (c.id === targetUser || c.id === callee) {
         c.busy = false;
         c.partner = null;
       }
     });
-    io.to(targetUser).emit("call_reject");
+
+    safeEmit(targetUser, "call_reject");
   });
 
-  // Call canceled
   socket.on("call_canceled", ({ target, caller }) => {
-    rooms[socket.room]?.forEach((c) => {
+    const room = socket.room;
+    if (!room || !rooms[room]) return;
+    if (!target || !caller) return;
+
+    rooms[room].forEach((c) => {
       if (c.id === caller || c.id === target.id) {
         c.busy = false;
         c.partner = null;
       }
     });
-    io.to(target.id).emit("call_cancel");
+
+    if (target?.id) safeEmit(target.id, "call_cancel");
   });
 
-  // Call ended
   socket.on("call_ended", ({ target }) => {
-    rooms[socket.room]?.forEach((c) => {
-      if (c.id === target || c.id === socket.id) {
-        c.busy = false;
+    const room = socket.room;
+    if (!room || !rooms[room]) return;
+
+    const me = socket.id;
+
+    rooms[room].forEach((c) => {
+      if (c.id === target || c.id === me) {
         c.partner = null;
+        c.busy = false;
       }
     });
-    io.to(target).emit("call_ended");
+
+    if (target) safeEmit(target, "call_ended");
   });
 
-  // Disconnect
   socket.on("disconnect", () => {
-    if (!rooms[socket.room]) return;
+    const room = socket.room;
+    if (!room || !rooms[room]) return;
 
-    let partnerId = null;
-
-    rooms[socket.room].forEach((c) => {
+    // free partner (if any) and tell them call ended
+    let partner = null;
+    rooms[room].forEach((c) => {
       if (c.id === socket.id) {
-        partnerId = c.partner;
-      }
-    });
-
-    // free partner if exists
-    rooms[socket.room].forEach((c) => {
-      if (c.id === partnerId) {
-        c.busy = false;
+        partner = c.partner;
         c.partner = null;
+        c.busy = false;
       }
     });
 
-    // remove user
-    rooms[socket.room] = rooms[socket.room].filter((c) => c.id !== socket.id);
-
-    const members = rooms[socket.room];
-
-    if (members.length === 0) {
-      delete rooms[socket.room];
+    if (partner) {
+      const p = rooms[room].find((c) => c.id === partner);
+      if (p) {
+        p.partner = null;
+        p.busy = false;
+        safeEmit(partner, "call_ended");
+      }
     }
 
-    socket.to(socket.room).emit("user-left", {
-      message: `${socket.username} left`,
+    // remove user
+    rooms[room] = rooms[room].filter((c) => c.id !== socket.id);
+    const members = getMembers(room);
+
+    if (rooms[room].length === 0) delete rooms[room];
+
+    socket.to(room).emit("user-left", {
+      message: `${socket.username} left the room`,
       members,
     });
-
-    console.log(`User ${socket.username} left room ${socket.room}`);
   });
 });
 
-app.get("/", (req, res) => {
-  res.send("Welcome to the backend");
+app.get("/", (_req, res) => {
+  res.send("welcome to the backend");
 });
 
-server.listen(2000, () => {
-  console.log("Server running on port 2000");
+const PORT = process.env.PORT || 2000;
+server.listen(PORT, () => {
+  console.log("server online at", PORT);
 });
