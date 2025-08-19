@@ -7,7 +7,7 @@ import "./home.css";
  * IMPORTANT: Replace the TURN credentials with your real ones.
  * Mobile-to-mobile and NATed networks almost always need TURN.
  */
-const configuration = {
+const rtcConfig= {
   iceServers: [
     {
       urls: [
