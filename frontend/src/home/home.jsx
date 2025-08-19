@@ -1,631 +1,376 @@
-import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { io } from "socket.io-client";
-import "./home.css";
 
-/**
- * IMPORTANT: Replace the TURN credentials with your real ones.
- * Mobile-to-mobile and NATed networks almost always need TURN.
- */
-const rtcConfig= {
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import './home.css'
+
+import { io } from 'socket.io-client'
+const configuration = {
   iceServers: [
     {
       urls: [
-        "stun:stun.l.google.com:19302",
-        "stun:stun1.l.google.com:19302",
-        "stun:stun2.l.google.com:19302",
-        "stun:stun3.l.google.com:19302",
-        "stun:stun4.l.google.com:19302"
-      ]
-    },
-    {
-      urls: `turns:ahteshan.webrtc.xirsys.com:443?transport=tcp`,
-      username: "ahteshan",
-      credential: "061c8212-7c6c-11f0-9de2-0242ac140002"
-    },
-    {
-      urls: `turn:ahteshan.webrtc.xirsys.com:80?transport=udp`,
-      username: "ahteshan",
-      credential: "061c8212-7c6c-11f0-9de2-0242ac140002"
+        "stun:stun.l.google.com:19302",             // Google STUN (backup)
+        "stun:global.xirsys.net",                   // Xirsys STUN
+        "turn:global.xirsys.net:3478?transport=udp",// Xirsys TURN UDP
+        "turn:global.xirsys.net:3478?transport=tcp",// Xirsys TURN TCP
+        "turns:global.xirsys.net:5349?transport=tcp"// Xirsys TURN over TLS
+      ],
+      username: "ahteshan", // your Xirsys ident
+      credential: "061c8212-7c6c-11f0-9de2-0242ac140002" // your Xirsys secret
     }
   ]
 };
 
 
-const SOCKET_URL = "https://video-chat-9zhu.onrender.com/"; // your backend
-
-export default function Home() {
-  const [otherusers, setOtherusers] = useState([]);
-  const [currentUser, setCurrentUser] = useState({});
-  const [incomingcall, setIncomingcall] = useState(false);
-  const [isCalling, setIsCalling] = useState(false);
-  const [userBusy, setUserBusy] = useState(false);
-  const [answerPayload, setAnswerPayload] = useState(null);
-  const [mute, setMute] = useState(false);
-  const [pause, setPause] = useState(false);
-  const [target, setTarget] = useState(null);
-  const [inCall, setInCall] = useState(false);
-  const [callReject, setCallReject] = useState(false);
-  const [callEnded, setCallEnded] = useState(false);
-  const [needsUserGesture, setNeedsUserGesture] = useState(false);
-
-  const location = useLocation();
-  const formData = location.state?.formData;
-  const navigate = useNavigate();
-
-  const localVideo = useRef(null);
-  const remoteVideo = useRef(null);
-  const localStream = useRef(null);
-  const pc = useRef(null);
-  const socket = useRef(null);
-
-  // Queue ICE candidates until remote description is set
-  const pendingRemoteCandidates = useRef([]);
-
-  // ===== Helpers =====
-  const log = (...args) => console.log(...args);
-
-  const ensureLocalStream = async () => {
-    if (!localStream.current) {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: true,
-      });
-      localStream.current = stream;
-      if (localVideo.current) localVideo.current.srcObject = stream;
-    }
-  };
-
-  const createPeerConnection = () => {
-    if (pc.current) return pc.current;
-
-    log("Creating RTCPeerConnection");
-    const peer = new RTCPeerConnection(rtcConfig);
-
-    peer.onicecandidate = (event) => {
-      if (event.candidate && target?.id) {
-        socket.current?.emit("ice-candidate", {
-          target: target.id,
-          route: event.candidate,
-        });
-        log("ICE candidate event: candidate");
-      }
-    };
-
-    peer.ontrack = (event) => {
-      const remoteStream = event.streams[0];
-      if (remoteVideo.current && remoteStream) {
-        remoteVideo.current.srcObject = remoteStream;
-        tryToPlayRemote();
-        log("Received remote track:", event.track.kind);
-      }
-    };
-
-    peer.onconnectionstatechange = () => {
-      log("Connection state:", peer.connectionState);
-      if (peer.connectionState === "failed") attemptIceRestart();
-    };
-
-    peer.oniceconnectionstatechange = () => {
-      log("ICE connection state:", peer.iceConnectionState);
-      if (peer.iceConnectionState === "failed") attemptIceRestart();
-    };
-
-    pc.current = peer;
-    return peer;
-  };
-
-  const addLocalTracks = () => {
-    if (!pc.current || !localStream.current) return;
-    const senders = pc.current.getSenders();
-    localStream.current.getTracks().forEach((track) => {
-      const already = senders.find((s) => s.track && s.track.kind === track.kind);
-      if (!already) {
-        pc.current.addTrack(track, localStream.current);
-        log("Adding local track:", track.kind);
-      }
-    });
-  };
-
-  const tryToPlayRemote = async () => {
-    if (!remoteVideo.current) return;
-    try {
-      // mobile often needs muted for autoplay
-      remoteVideo.current.muted = true;
-      await remoteVideo.current.play();
-      // we keep it muted until user taps “Unmute”
-    } catch (err) {
-      log("Remote video autoplay blocked, waiting for user gesture:", err);
-      setNeedsUserGesture(true);
-    }
-  };
-
-  const unmuteRemote = async () => {
-    if (!remoteVideo.current) return;
-    try {
-      remoteVideo.current.muted = false;
-      await remoteVideo.current.play();
-      setNeedsUserGesture(false);
-    } catch (err) {
-      log("Unmute attempt failed:", err);
-    }
-  };
-
-  const clearPeer = () => {
-    if (pc.current) {
-      try {
-        pc.current.getSenders().forEach((s) => s.track && s.track.stop?.());
-      } catch {}
-      try {
-        pc.current.close();
-      } catch {}
-      pc.current = null;
-    }
-    pendingRemoteCandidates.current = [];
-  };
-
-  const cleanupMedia = () => {
-    if (localStream.current) {
-      localStream.current.getTracks().forEach((t) => t.stop());
-      localStream.current = null;
-    }
-    if (localVideo.current) localVideo.current.srcObject = null;
-    if (remoteVideo.current) remoteVideo.current.srcObject = null;
-  };
-
-  const attemptIceRestart = async () => {
-    if (!pc.current) return;
-    try {
-      log("Attempting ICE restart...");
-      const offer = await pc.current.createOffer({ iceRestart: true });
-      await pc.current.setLocalDescription(offer);
-      if (target?.id && currentUser?.username) {
-        socket.current?.emit("offer", {
-          sdp: offer,
-          target: target.id,
-          caller: { username: currentUser.username, id: socket.current.id },
-        });
-      }
-    } catch (e) {
-      log("ICE restart failed:", e);
-    }
-  };
-
-  // ===== Socket + lifecycle =====
+function Home() {
+  let [otherusers, setOtherusers] = useState([])
+  let [currentUser, setCurrentUser] = useState({})
+  let [incomingcall, setIncomingcall] = useState(false)
+  let [isCalling, setIsCalling] = useState(false)
+  let [userBusy, setUserBusy] = useState(false)
+  let [answer, setAnswer] = useState()
+  let [mute, setMute] = useState(false)
+  let [pause, setPause] = useState(false)
+  let [target, setTarget] = useState()
+  let [inCall, setInCall] = useState(false)
+  let [callReject, setCallReject] = useState(false)
+  let [callEnded, setCallEnded] = useState(false)
+  const location = useLocation()
+  const formData = location.state?.formData
+  const localVideo = useRef()
+  const localStream = useRef()
+  const remoteVideo = useRef()
+  const socket = useRef()
+  const peerConnection = useRef()
+  const navigate = useNavigate()
   useEffect(() => {
     if (!formData) {
-      navigate("/");
+      navigate("/")
       return;
     }
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then((stream) => {
+        localVideo.current.srcObject = stream
+        localStream.current = stream
+        socket.current = io("https://video-chat-9zhu.onrender.com/");
+        socket.current.on('connect', () => {
+          setCurrentUser({ username: formData.username, id: socket.current.id })
+          socket.current.emit('new-user', { id: socket.current.id, formData })
+        })
+        socket.current.on('user-joined', ({ message, members }) => {
+          setOtherusers(members.filter((client) => client.id !== socket.current.id))
 
-    (async () => {
-      await ensureLocalStream();
+          console.log(message)
+        })
+        socket.current.on('welcome', ({ message, members }) => {
 
-      socket.current = io(SOCKET_URL, { transports: ["websocket"] });
+          console.log(message)
+          setOtherusers(members.filter((client) => client.id !== socket.current.id))
 
-      socket.current.on("connect", () => {
-        log("Socket connected:", socket.current.id);
-        setCurrentUser({ username: formData.username, id: socket.current.id });
-        socket.current.emit("new-user", { id: socket.current.id, formData });
-      });
+        })
+        socket.current.on("user-left", ({ message, members }) => {
+          setOtherusers(members.filter(client => client.id !== socket.current.id))
+          console.log(message)
+        })
 
-      socket.current.on("user-joined", ({ message, members }) => {
-        log("User joined:", message);
-        setOtherusers(members.filter((m) => m.id !== socket.current.id));
-      });
-
-      socket.current.on("welcome", ({ message, members }) => {
-        log("Welcome received, members:", members);
-        setOtherusers(members.filter((m) => m.id !== socket.current.id));
-      });
-
-      socket.current.on("user-left", ({ message, members }) => {
-        log("User left:", message);
-        setOtherusers(members.filter((m) => m.id !== socket.current.id));
-      });
-
-      socket.current.on("offer", (payload) => {
-        log(`Incoming offer from ${payload?.caller?.id} to ${payload?.target}`);
-        if (!payload?.sdp) return;
-        setIncomingcall(true);
-        setAnswerPayload(payload);
-      });
-
-      socket.current.on("answer", async (payload) => {
-        try {
-          log("Received answer:", payload);
-          setCurrentUser((prev) => ({ ...prev, partner: payload.caller.id }));
-          setIsCalling(false);
-          setInCall(true);
-
-          if (!pc.current) createPeerConnection();
-
-          await pc.current.setRemoteDescription(
-            new RTCSessionDescription(payload.sdp)
-          );
-          log("Remote description set for answer");
-
-          while (pendingRemoteCandidates.current.length) {
-            const cand = pendingRemoteCandidates.current.shift();
-            try {
-              await pc.current.addIceCandidate(cand);
-              log("Added queued ICE candidate");
-            } catch (e) {
-              log("Failed to add queued candidate:", e);
-            }
+        socket.current.on('offer', (payload) => {
+          console.log(`offer recieved from ${payload.caller.id} to ${payload.target}`)
+          if (payload.sdp) {
+            setIncomingcall(true)
           }
-        } catch (e) {
-          log("Error handling answer:", e);
-        }
-      });
+          setAnswer(payload)
+        })
+        socket.current.on('userBusy', ({ message }) => {
+          setUserBusy(true)
+          setIsCalling(false)
+          setTarget(null)
+          console.log(message)
+        })
+        socket.current.on('answer', (payload) => {
+          setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }))
+          setIsCalling(false)
+          setInCall(true)
+          peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+        })
+        socket.current.on('call_reject', () => {
+          console.log('call reject')
+          setIsCalling(false)
+          setCallReject(true)
+        })
+        socket.current.on('call_cancel', () => {
+          setIncomingcall(false)
+        })
+        socket.current.on('call_ended', () => {
 
-      socket.current.on("userBusy", ({ message }) => {
-        setUserBusy(true);
-        setIsCalling(false);
-        setTarget(null);
-        log(message);
-      });
-
-      socket.current.on("call_reject", () => {
-        setIsCalling(false);
-        setCallReject(true);
-        log("Call rejected");
-      });
-
-      socket.current.on("call_cancel", () => {
-        setIncomingcall(false);
-        setAnswerPayload(null);
-        log("Caller canceled");
-      });
-
-      socket.current.on("call_ended", () => {
-        log("Call ended (remote)");
-        setCallEnded(true);
-        setInCall(false);
-        setTarget(null);
-        setNeedsUserGesture(false);
-        clearPeer();
-        cleanupMedia();
-      });
-
-      socket.current.on("ice-candidate", async (payload) => {
-        const candidate = new RTCIceCandidate(payload.route);
-        if (pc.current && pc.current.remoteDescription) {
-          try {
-            await pc.current.addIceCandidate(candidate);
-            log("ICE candidate added successfully");
-          } catch (e) {
-            log("Failed to add ICE candidate:", e);
+          setCallEnded(true)
+          if (localStream) {
+            localStream.current.getTracks().forEach(track => track.stop());
           }
-        } else {
-          pendingRemoteCandidates.current.push(candidate);
-          log("ICE candidate queued");
+
+          // close peer connection
+          if (peerConnection) {
+            peerConnection.current.close();
+          }
+
+          // reset state
+          localStream.current = null;
+          setTarget(null)
+          setInCall(false);
+          peerConnection.current = null;
+        })
+
+
+
+        socket.current.on('ice-candidate', (payload) => {
+          if (peerConnection.current) {
+            peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.route))
+          }
+
+        })
+
+        return () => {
+          if (socket.current) {
+            socket.current.disconnect()
+            socket.current.off()
+          }
+
+
         }
-      });
-    })();
+      })
 
-    return () => {
-      try {
-        socket.current?.off();
-        socket.current?.disconnect();
-      } catch {}
-      clearPeer();
-      cleanupMedia();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  // ===== Actions =====
+
+
+
+
+  }, [])
   const createOffer = async ({ targetUser, user }) => {
-    try {
-      log("Creating offer for user:", user.username);
-      setTarget(user);
-      setIsCalling(true);
+    setTarget(user)
 
-      await ensureLocalStream();
-      createPeerConnection();
-      addLocalTracks();
-
-      const offer = await pc.current.createOffer();
-      await pc.current.setLocalDescription(offer);
-      log("Local description set, sending offer");
-
-      socket.current.emit("offer", {
-        sdp: offer,
-        target: targetUser,
-        caller: { username: currentUser.username, id: socket.current.id },
-      });
-    } catch (e) {
-      log("Failed to create/send offer:", e);
-      setIsCalling(false);
+    console.log("sending offer to ", targetUser)
+    setIsCalling(true)
+    if (!localStream.current) {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+      localStream.current = stream
+      localVideo.current.srcObject = stream
     }
-  };
-
-  const createAnswer = async (payload) => {
-    try {
-      setCurrentUser((prev) => ({ ...prev, partner: payload.caller.id }));
-      await ensureLocalStream();
-      createPeerConnection();
-      addLocalTracks();
-
-      await pc.current.setRemoteDescription(
-        new RTCSessionDescription(payload.sdp)
-      );
-      const answer = await pc.current.createAnswer();
-      await pc.current.setLocalDescription(answer);
-
-      socket.current.emit("answer", {
-        target: payload.caller.id,
-        sdp: answer,
-        caller: { username: currentUser.username, id: socket.current.id },
-      });
-
-      setInCall(true);
-
-      while (pendingRemoteCandidates.current.length) {
-        const cand = pendingRemoteCandidates.current.shift();
-        try {
-          await pc.current.addIceCandidate(cand);
-          log("Added queued ICE candidate");
-        } catch (e) {
-          log("Failed to add queued candidate:", e);
-        }
+    peerConnection.current = new RTCPeerConnection(configuration)
+    peerConnection.current.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.current.emit('ice-candidate', { target: targetUser, route: event.candidate })
       }
-    } catch (e) {
-      log("Failed to create/send answer:", e);
     }
-  };
+    peerConnection.current.ontrack = (event) => {
+      remoteVideo.current.srcObject = event.streams[0]
+    }
+    localStream.current.getTracks().forEach(track => {
+      peerConnection.current.addTrack(track, localStream.current)
+    })
 
-  const sendAnswer = () => {
-    if (!answerPayload) return;
-    setIncomingcall(false);
-    createAnswer(answerPayload);
-    setAnswerPayload(null);
-    log("Call accepted");
-  };
+    const offer = await peerConnection.current.createOffer()
+    await peerConnection.current.setLocalDescription(offer)
 
+    socket.current.emit('offer', { sdp: offer, target: targetUser, caller: { username: currentUser.username, id: socket.current.id } })
+    console.log("sent offer to ", targetUser)
+
+
+  }
+  const createAnswer = async ({ payload }) => {
+    setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }))
+    if (!localStream.current) {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+      localStream.current = stream
+      localVideo.current.srcObject = stream
+    }
+    peerConnection.current = new RTCPeerConnection(configuration)
+    peerConnection.current.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.current.emit('ice-candidate', { target: payload.caller.id, route: event.candidate })
+      }
+    }
+    peerConnection.current.ontrack = (event) => {
+      remoteVideo.current.srcObject = event.streams[0]
+    }
+    localStream.current.getTracks().forEach(track => {
+      peerConnection.current.addTrack(track, localStream.current)
+    })
+    await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+    const answer = await peerConnection.current.createAnswer()
+    await peerConnection.current.setLocalDescription(answer)
+    socket.current.emit('answer', { target: payload.caller.id, sdp: answer, caller: currentUser })
+
+  }
+  const sendAnswer = (answer) => {
+
+    createAnswer({ payload: answer })
+
+    setIncomingcall(false)
+    setInCall(true)
+    console.log("call accepted")
+    setCurrentUser(prev => ({ ...prev, partner: answer.caller.id }))
+
+  }
   const handleAudio = () => {
-    if (!localStream.current) return;
-    const audios = localStream.current.getAudioTracks();
-    if (!audios.length) return;
-    const enabled = !mute;
-    audios.forEach((t) => (t.enabled = !enabled));
-    setMute(!mute);
-  };
+    mute ? (localStream.current.getAudioTracks().forEach(audioTrack => audioTrack.enabled = true), setMute(false)) : (localStream.current.getAudioTracks().forEach(audioTrack => audioTrack.enabled = false), setMute(true))
 
+
+  }
   const handleVideo = () => {
-    if (!localStream.current) return;
-    const videos = localStream.current.getVideoTracks();
-    if (!videos.length) return;
-    const enabled = !pause;
-    videos.forEach((t) => (t.enabled = !enabled));
-    setPause(!pause);
-  };
-
+    pause ? (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = true), setPause(false)) : (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = false), setPause(true))
+  }
   const handleCancelCall = () => {
-    setIsCalling(false);
-    if (target) {
-      socket.current.emit("call_canceled", {
-        target,
-        caller: socket.current.id,
-      });
-    }
-    setTarget(null);
-  };
-
+    setIsCalling(false)
+    socket.current.emit('call_canceled', { target, caller: socket.current.id })
+    setTarget(null)
+  }
   const handleRejectCall = () => {
-    setIncomingcall(false);
-    if (answerPayload?.caller?.id) {
-      socket.current.emit("call_reject", {
-        targetUser: answerPayload.caller.id,
-        callee: socket.current.id,
-      });
-    }
-    setAnswerPayload(null);
-  };
+    setIncomingcall(false)
 
+    socket.current.emit('call_reject', ({ targetUser: answer.caller.id, callee: socket.current.id }))
+  }
   const handleEnd = () => {
-    if (currentUser?.partner) {
-      socket.current.emit("call_ended", {
-        target: currentUser.partner,
-        currentUser: currentUser.id,
-      });
+    setTarget(null)
+    socket.current.emit('call_ended', { target: currentUser.partner, currentUser: currentUser.id })
+    console.log("you are ending the call")
+    if (localStream) {
+      localStream.current.getTracks().forEach(track => track.stop());
+      localStream.current = null;
     }
-    setTarget(null);
+
+
+    if (peerConnection) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+
+
+
+    setCallEnded(true)
     setInCall(false);
-    setCallEnded(true);
-    setNeedsUserGesture(false);
 
-    clearPeer();
-    cleanupMedia();
-  };
 
-  // ===== Render =====
-  return (
-    <div className="App">
-      <header className="app-header">
-        <h1>My Video Call App {currentUser.username}</h1>
-      </header>
 
-      <main className="main-content">
-        <section className="video-section">
-          <div className="video">
-            <div className="local-video-container">
-              <video
-                ref={localVideo}
-                autoPlay
-                muted
-                playsInline
-                disablePictureInPicture
-              />
-              <div className="video-label">You</div>
-            </div>
+  }
 
-            <div className="remote-video-container">
-              <video
-                ref={remoteVideo}
-                autoPlay
-                playsInline
-                disablePictureInPicture
-              />
-              <div className="video-label">Remote</div>
 
-              {needsUserGesture && (
-                <div className="tap-to-unmute">
-                  <button onClick={unmuteRemote}>Tap to unmute audio</button>
-                </div>
-              )}
-            </div>
+
+  return (// Improved JSX structure for better positioning - keeping all your logic intact
+  <div className='App'>
+    <header className="app-header">
+      <h1>My Video Call App {currentUser.username}</h1>
+    </header>
+  
+    <main className="main-content">
+      <section className="video-section">
+        <div className='video'>
+          <div className="local-video-container">
+            <video ref={localVideo} autoPlay muted playsInline></video>
+            <div className="video-label">You</div>
           </div>
-
-          <div className="video-controls">
-            <button className="muteBtn" onClick={handleAudio}>
-              {mute ? "unmute" : "mute"}
-            </button>
-            <button className="muteBtn" onClick={handleVideo}>
-              {pause ? "video on" : "video off"}
-            </button>
-            {inCall && (
-              <button className="muteBtn end-call-btn" onClick={handleEnd}>
-                end
-              </button>
-            )}
-          </div>
-        </section>
-
-        <aside className="sidebar">
-          <div className="list">
-            <div className="list-header">
-              <p>Online Users ({otherusers.length})</p>
-            </div>
-            <div className="list-content">
-              <ul>
-                {otherusers.length > 0 ? (
-                  otherusers.map((user) => (
-                    <li key={user.id} className="user-item">
-                      <span className="user-info">
-                        <span className="online-indicator"></span>
-                        <span className="username">{user.username}</span>
-                      </span>
-                      <button
-                        className="call-btn"
-                        onClick={() =>
-                          createOffer({ targetUser: user.id, user })
-                        }
-                      >
-                        call
-                      </button>
-                    </li>
-                  ))
-                ) : (
-                  <li className="no-users">no users online</li>
-                )}
-              </ul>
-            </div>
-          </div>
-        </aside>
-      </main>
-
-      {/* Popups */}
-      {incomingcall && (
-        <div className="popup-overlay">
-          <div className="popup incoming-call">
-            <div className="popup-icon">📞</div>
-            <h3>Incoming Call</h3>
-            <p>
-              Call from{" "}
-              <span className="caller-name">{answerPayload?.caller?.username}</span>
-            </p>
-            <div className="popup-actions">
-              <button className="accept-btn" onClick={sendAnswer}>
-                Accept
-              </button>
-              <button className="reject-btn" onClick={handleRejectCall}>
-                Reject
-              </button>
-            </div>
+          
+          <div className="remote-video-container">
+            <video ref={remoteVideo} autoPlay playsInline></video>
+            <div className="video-label">Remote</div>
           </div>
         </div>
-      )}
-
-      {isCalling && (
-        <div className="popup-overlay">
-          <div className="popup calling">
-            <div className="calling-spinner"></div>
-            <h3>Calling...</h3>
-            <p>
-              Calling <span className="target-name">{target?.username}</span>
-            </p>
-            <div className="popup-actions">
-              <button className="cancel-btn" onClick={handleCancelCall}>
-                cancel
-              </button>
-            </div>
+        
+        <div className="video-controls">
+          <button className='muteBtn' onClick={handleAudio}>mute</button>
+          <button className='muteBtn' onClick={handleVideo}>video</button>
+          {inCall && <button className='muteBtn end-call-btn' onClick={handleEnd}>end</button>}
+        </div>
+      </section>
+  
+      <aside className="sidebar">
+        <div className='list'>
+          <div className="list-header">
+            <p>Online Users ({otherusers.length})</p>
+          </div>
+          <div className="list-content">
+            <ul>
+              {otherusers.length > 0 ? otherusers.map(user =>
+                (<li key={user.id} className="user-item">
+                  <span className="user-info">
+                    <span className="online-indicator"></span>
+                    <span className="username">{user.username}</span>
+                  </span>
+                  <button className="call-btn" onClick={() => createOffer({ targetUser: user.id, user: user })}>call</button>
+                </li>)
+              ) : (<li className="no-users">no users online</li>)}
+            </ul>
           </div>
         </div>
-      )}
-
-      {userBusy && (
-        <div className="popup-overlay">
-          <div className="popup user-busy">
-            <div className="popup-icon">📵</div>
-            <h3>User Busy</h3>
-            <p>user busy in another call</p>
-            <div className="popup-actions">
-              <button className="ok-btn" onClick={() => setUserBusy(false)}>
-                ok
-              </button>
-            </div>
+      </aside>
+    </main>
+  
+    {/* All your popups with improved structure */}
+    {incomingcall && 
+      <div className="popup-overlay">
+        <div className="popup incoming-call">
+          <div className="popup-icon">📞</div>
+          <h3>Incoming Call</h3>
+          <p>Call from <span className="caller-name">{answer.caller.username}</span></p>
+          <div className="popup-actions">
+            <button className="accept-btn" onClick={() => sendAnswer(answer)}>Accept</button>
+            <button className="reject-btn" onClick={handleRejectCall}>Reject</button>
           </div>
         </div>
-      )}
-
-      {callReject && (
-        <div className="popup-overlay">
-          <div className="popup call-rejected">
-            <div className="popup-icon">❌</div>
-            <h3>Call Declined</h3>
-            <p>user rejected your call</p>
-            <div className="popup-actions">
-              <button
-                className="ok-btn"
-                onClick={() => {
-                  setCallReject(false);
-                  setTarget(null);
-                }}
-              >
-                ok
-              </button>
-              {target && (
-                <button
-                  className="retry-btn"
-                  onClick={() => {
-                    createOffer({ targetUser: target.id, user: target });
-                    setCallReject(false);
-                  }}
-                >
-                  call Again
-                </button>
-              )}
-            </div>
+      </div>
+    }
+  
+    {isCalling && 
+      <div className="popup-overlay">
+        <div className="popup calling">
+          <div className="calling-spinner"></div>
+          <h3>Calling...</h3>
+          <p>Calling <span className="target-name">{target.username}</span></p>
+          <div className="popup-actions">
+            <button className="cancel-btn" onClick={handleCancelCall}>cancel</button>
           </div>
         </div>
-      )}
-
-      {callEnded && (
-        <div className="popup-overlay">
-          <div className="popup call-ended">
-            <div className="popup-icon">📴</div>
-            <h3>Call Ended</h3>
-            <p>call ended</p>
-            <div className="popup-actions">
-              <button className="ok-btn" onClick={() => setCallEnded(false)}>
-                ok
-              </button>
-            </div>
+      </div>
+    }
+  
+    {userBusy && 
+      <div className="popup-overlay">
+        <div className="popup user-busy">
+          <div className="popup-icon">📵</div>
+          <h3>User Busy</h3>
+          <p>user busy in another call</p>
+          <div className="popup-actions">
+            <button className="ok-btn" onClick={() => setUserBusy(false)}>ok</button>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    }
+  
+    {callReject && 
+      <div className="popup-overlay">
+        <div className="popup call-rejected">
+          <div className="popup-icon">❌</div>
+          <h3>Call Declined</h3>
+          <p>user rejected your call</p>
+          <div className="popup-actions">
+            <button className="ok-btn" onClick={() => { setCallReject(false), setTarget() }}>ok</button>
+            <button className="retry-btn" onClick={() => { createOffer({ targetUser: target.id, user: target }), setCallReject(false) }}>call Again</button>
+          </div>
+        </div>
+      </div>
+    }
+  
+    {callEnded && 
+      <div className="popup-overlay">
+        <div className="popup call-ended">
+          <div className="popup-icon">📴</div>
+          <h3>Call Ended</h3>
+          <p>call ended</p>
+          <div className="popup-actions">
+            <button className="ok-btn" onClick={() => setCallEnded(false)}>ok</button>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
   );
 }
+
+export default Home;
