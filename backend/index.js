@@ -9,7 +9,7 @@ const server = createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: "https://videochater.netlify.app", 
+        origin: "https://videochater.netlify.app", // Make sure this matches your frontend URL
         methods: ["GET", "POST"]
     }
 });
@@ -104,7 +104,7 @@ io.on("connection", (socket) => {
                 partner.busy = false;
                 partner.partner = null;
             }
-            io.to(partnerId).emit('call_ended');
+            io.to(partnerId).emit('call_ended'); // Notify the partner the call has ended
         }
 
         const members = rooms[socket.room];
