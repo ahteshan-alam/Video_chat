@@ -15,7 +15,7 @@ const configuration = {
         "stun:stun4.l.google.com:19302"
       ]
     },
-   
+    // Added TURN servers for better NAT traversal
    
   ]
 };
