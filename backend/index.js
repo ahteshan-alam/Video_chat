@@ -2,153 +2,92 @@ import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import twilio from 'twilio';
+
+// --- Twilio Configuration ---
+// Your Account SID and Auth Token are loaded from environment variables
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+// Initialize the Twilio client, but only if credentials are provided
+const client = (accountSid && authToken) ? twilio(accountSid, authToken) : null;
+if (!client) {
+    console.warn("Twilio credentials not found in environment variables. TURN server will be unavailable, using public STUN only.");
+}
 
 const app = express();
 app.use(cors());
-app.use(express.json()); // Middleware to parse JSON bodies
-
 const server = createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: [
-            "https://videochater.netlify.app",
-            "http://localhost:3000",
-            "http://localhost:5173"
-        ],
-        methods: ["GET", "POST"],
-        credentials: true
+        origin: "https://videochater.netlify.app", // Your deployed frontend URL
+        methods: ["GET", "POST"]
     },
-    transports: ['websocket', 'polling'],
-    // Add these two lines to make the connection more stable
-    pingTimeout: 60000, // How long to wait for a client's heartbeat before disconnecting (60 seconds)
-    pingInterval: 25000 // How often to send a heartbeat ping (25 seconds)
+    pingTimeout: 60000,
+    pingInterval: 25000,
+});
+
+// --- New Endpoint to Securely Fetch Twilio ICE Servers ---
+app.get('/get-ice-servers', async (req, res) => {
+    if (!client) {
+        // Provide public STUN servers as a fallback if Twilio is not configured
+        return res.json({ 
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] 
+        });
+    }
+    try {
+        const token = await client.tokens.create();
+        res.json({ iceServers: token.iceServers });
+    } catch (error) {
+        console.error("Failed to get ICE servers from Twilio:", error);
+        res.status(500).json({ error: 'Failed to get ICE servers' });
+    }
 });
 
 let rooms = {};
 
-// --- Utility Functions for Cleaner Code ---
-
-const findUserInRoom = (roomName, userId) => {
-    return rooms[roomName]?.find(client => client.id === userId) || null;
-};
-
-const updateUserStatus = (roomName, userId, updates) => {
-    const user = findUserInRoom(roomName, userId);
-    if (user) {
-        Object.assign(user, updates);
-        return true;
-    }
-    return false;
-};
-
-const cleanupUser = (socket) => {
-    if (!socket.room || !rooms[socket.room]) return;
-
-    const disconnectingUser = findUserInRoom(socket.room, socket.id);
-    if (!disconnectingUser) return;
-
-    const partnerId = disconnectingUser.partner;
-
-    // Remove user from the room
-    rooms[socket.room] = rooms[socket.room].filter(client => client.id !== socket.id);
-    
-    // If the user was in a call, notify their partner and reset partner's status
-    if (partnerId) {
-        const partner = findUserInRoom(socket.room, partnerId);
-        if (partner) {
-            updateUserStatus(socket.room, partner.id, { busy: false, partner: null });
-            io.to(partnerId).emit('call_ended', { message: 'The other user disconnected.' });
-        }
-    }
-
-    const members = rooms[socket.room];
-    if (members.length === 0) {
-        delete rooms[socket.room];
-        console.log(`Room ${socket.room} is now empty and has been deleted.`);
-    } else {
-        // Notify remaining members that a user has left
-        socket.broadcast.to(socket.room).emit('user-left', {
-            message: `${socket.username} left the room`,
-            members
-        });
-    }
-
-    console.log(`User ${socket.username} (${socket.id}) cleaned up from room ${socket.room}`);
-};
-
-
-// --- Socket Event Listeners ---
-
+// --- Socket.IO Connection Logic ---
 io.on("connection", (socket) => {
-    console.log(`User connected: ${socket.id}`);
-
-    socket.on('new-user', ({ formData }) => {
-        try {
-            console.log(`New user joining: ${formData.username} in room: ${formData.room}`);
-            
-            socket.room = formData.room;
-            socket.username = formData.username;
-            
-            if (!rooms[socket.room]) {
-                rooms[socket.room] = [];
-            }
-            
-            // Prevent duplicate entries on reconnect
-            rooms[socket.room] = rooms[socket.room].filter(client => client.id !== socket.id);
-            
-            rooms[socket.room].push({
-                username: formData.username,
-                id: socket.id,
-                busy: false,
-                partner: null,
-            });
-            
-            socket.join(socket.room);
-            
-            const members = rooms[socket.room];
-            socket.broadcast.to(socket.room).emit('user-joined', { members });
-            socket.emit('welcome', { members });
-            
-        } catch (error) {
-            console.error('Error in new-user event:', error);
-            socket.emit('error-event', { message: 'Failed to join the room.' });
+    socket.on('new-user', ({ id, formData }) => {
+        socket.room = formData.room;
+        socket.username = formData.username;
+        if (!rooms[socket.room]) {
+            rooms[socket.room] = [];
         }
+        rooms[socket.room] = rooms[socket.room].filter(client => client.id !== socket.id);
+        rooms[socket.room].push({ username: formData.username, id: socket.id, busy: false, partner: null });
+        socket.join(formData.room);
+        
+        const members = rooms[socket.room];
+        socket.broadcast.to(formData.room).emit('user-joined', { members });
+        io.to(id).emit('welcome', { members });
     });
 
     socket.on('offer', (payload) => {
-        try {
-            const targetUser = findUserInRoom(socket.room, payload.target);
-            if (targetUser && !targetUser.busy) {
-                console.log(`Forwarding offer from ${socket.id} to ${payload.target}`);
-                io.to(payload.target).emit('offer', payload);
-            } else if (targetUser) {
-                console.log(`User ${payload.target} is busy, notifying ${socket.id}`);
-                socket.emit('userBusy', { message: `${targetUser.username} is busy.` });
-            }
-        } catch (error) {
-            console.error('Error in offer event:', error);
+        const targetUser = rooms[socket.room]?.find(client => client.id === payload.target);
+        if (targetUser && !targetUser.busy) {
+            io.to(payload.target).emit('offer', payload);
+        } else if (targetUser) {
+            io.to(payload.caller.id).emit('userBusy');
         }
     });
 
     socket.on('answer', (payload) => {
-        try {
-            const caller = findUserInRoom(socket.room, payload.target);
-            const callee = findUserInRoom(socket.room, socket.id);
-
-            if (caller && callee) {
-                console.log(`Establishing call between ${caller.username} and ${callee.username}`);
-                updateUserStatus(socket.room, caller.id, { busy: true, partner: callee.id });
-                updateUserStatus(socket.room, callee.id, { busy: true, partner: caller.id });
-                
-                io.to(payload.target).emit('answer', payload);
-                
-                // Notify everyone in the room of the status change
-                io.to(socket.room).emit('user-status-update', { members: rooms[socket.room] });
+        const room = rooms[socket.room];
+        if (room) {
+            const caller = room.find(client => client.id === payload.caller.id);
+            const callee = room.find(client => client.id === payload.target);
+            if (caller) {
+                caller.busy = true;
+                caller.partner = callee?.id;
             }
-        } catch (error) {
-            console.error('Error in answer event:', error);
+            if (callee) {
+                callee.busy = true;
+                callee.partner = caller?.id;
+            }
         }
+        io.to(payload.target).emit('answer', payload);
     });
 
     socket.on('ice-candidate', (payload) => {
@@ -156,29 +95,56 @@ io.on("connection", (socket) => {
     });
 
     socket.on('call_reject', ({ targetUser }) => {
-        console.log(`Call rejected by ${socket.id} to ${targetUser}`);
         io.to(targetUser).emit('call_reject');
     });
 
     socket.on('call_canceled', ({ target }) => {
-        if(target && target.id) {
-            console.log(`Call to ${target.id} was canceled by the caller.`);
-            io.to(target.id).emit('call_cancel');
-        }
+        if(target && target.id) io.to(target.id).emit('call_cancel');
     });
 
     socket.on('call_ended', ({ target, currentUser }) => {
-        console.log(`Call ended between ${currentUser} and ${target}`);
-        updateUserStatus(socket.room, target, { busy: false, partner: null });
-        updateUserStatus(socket.room, currentUser, { busy: false, partner: null });
-        
+        const room = rooms[socket.room];
+        if (room) {
+            const client1 = room.find(c => c.id === target);
+            const client2 = room.find(c => c.id === currentUser);
+            if (client1) {
+                client1.busy = false;
+                client1.partner = null;
+            }
+            if (client2) {
+                client2.busy = false;
+                client2.partner = null;
+            }
+        }
         io.to(target).emit('call_ended');
-        io.to(socket.room).emit('user-status-update', { members: rooms[socket.room] });
     });
 
     socket.on("disconnect", () => {
-        console.log(`User disconnected: ${socket.id}`);
-        cleanupUser(socket);
+        if (!socket.room || !rooms[socket.room]) return;
+
+        let partnerId;
+        const disconnectingUser = rooms[socket.room].find(client => client.id === socket.id);
+        if (disconnectingUser) {
+            partnerId = disconnectingUser.partner;
+        }
+
+        rooms[socket.room] = rooms[socket.room].filter(client => client.id !== socket.id);
+
+        if (partnerId) {
+            const partner = rooms[socket.room].find(client => client.id === partnerId);
+            if (partner) {
+                partner.busy = false;
+                partner.partner = null;
+            }
+            io.to(partnerId).emit('call_ended');
+        }
+
+        const members = rooms[socket.room];
+        if (members.length === 0) {
+            delete rooms[socket.room];
+        } else {
+            socket.to(socket.room).emit('user-left', { members });
+        }
     });
 });
 
@@ -188,5 +154,5 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 2000;
 server.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server online at ${PORT}`);
 });
