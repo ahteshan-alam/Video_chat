@@ -14,7 +14,7 @@ const configuration = {
         "turns:global.xirsys.net:5349?transport=tcp"// Xirsys TURN over TLS
       ],
       username: "ahteshan",
-      credential: "061c8212-7c6c-11f0-9de2-0242ac140002"
+      credential: "0be23f2e-7d2b-11f0-a0ab-0242ac140006"
     }
   ]
 };
