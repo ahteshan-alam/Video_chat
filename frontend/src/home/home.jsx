@@ -7,23 +7,30 @@ import "./home.css";
  * IMPORTANT: Replace the TURN credentials with your real ones.
  * Mobile-to-mobile and NATed networks almost always need TURN.
  */
-const rtcConfig = {
+const configuration = {
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
     {
       urls: [
-        "stun:global.xirsys.net",
-        "turn:global.xirsys.net:3478?transport=udp",
-        "turn:global.xirsys.net:3478?transport=tcp",
-        "turns:global.xirsys.net:5349?transport=tcp",
-      ],
-      username: "ahteshan", // <-- replace with valid account info
-      credential: "061c8212-7c6c-11f0-9de2-0242ac140002", // <-- replace with valid account info
+        "stun:stun.l.google.com:19302",
+        "stun:stun1.l.google.com:19302",
+        "stun:stun2.l.google.com:19302",
+        "stun:stun3.l.google.com:19302",
+        "stun:stun4.l.google.com:19302"
+      ]
     },
-  ],
-  iceTransportPolicy: "all",
-  bundlePolicy: "balanced",
+    {
+      urls: `turns:ahteshan.webrtc.xirsys.com:443?transport=tcp`,
+      username: "ahteshan",
+      credential: "061c8212-7c6c-11f0-9de2-0242ac140002"
+    },
+    {
+      urls: `turn:ahteshan.webrtc.xirsys.com:80?transport=udp`,
+      username: "ahteshan",
+      credential: "061c8212-7c6c-11f0-9de2-0242ac140002"
+    }
+  ]
 };
+
 
 const SOCKET_URL = "https://video-chat-9zhu.onrender.com/"; // your backend
 
