@@ -1,4 +1,4 @@
-// Frontend: Home.js
+
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './home.css'
@@ -15,7 +15,7 @@ const configuration = {
         "stun:stun4.l.google.com:19302"
       ]
     },
-    // Added TURN servers for better NAT traversal
+    
    
   ]
 };
@@ -26,7 +26,7 @@ function Home() {
   let [incomingcall, setIncomingcall] = useState(false)
   let [isCalling, setIsCalling] = useState(false)
   let [userBusy, setUserBusy] = useState(false)
-  let [pendingOffer, setPendingOffer] = useState(null) // New: store incoming offer for early PC setup
+  let [pendingOffer, setPendingOffer] = useState(null) 
   let [mute, setMute] = useState(false)
   let [pause, setPause] = useState(false)
   let [target, setTarget] = useState()
@@ -40,7 +40,7 @@ function Home() {
   const remoteVideo = useRef()
   const socket = useRef()
   const peerConnection = useRef()
-  const candidatesQueue = useRef([]) // For queuing ICE candidates if remote description not set yet
+  const candidatesQueue = useRef([])
   const navigate = useNavigate()
   
   useEffect(() => {
@@ -72,7 +72,7 @@ function Home() {
 
         socket.current.on('offer', async (payload) => {
           console.log(`offer recieved from ${payload.caller.id} to ${payload.target}`)
-          // Removed redundant busy check and emit; server handles it
+          
           if (payload.sdp) {
             candidatesQueue.current = [] 
             peerConnection.current = new RTCPeerConnection(configuration)
