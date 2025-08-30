@@ -90,6 +90,7 @@ function Home() {
           peerConnection.current.ontrack = (event) => {
             remoteVideo.current.srcObject = event.streams[0]
           }
+          remoteVideo.current.srcObject = null;
 
           await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
           for (const candidate of candidatesQueue.current){
@@ -111,7 +112,8 @@ function Home() {
           setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }))
           setIsCalling(false)
           setInCall(true)
-          peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+          remoteVideo.current.srcObject = null;
+          await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
           for (const candidate of candidatesQueue.current){
             await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate))
           }
@@ -253,6 +255,8 @@ function Home() {
       localStream.current.getTracks().forEach(track=>track.stop());
       localStream.current=null;
     }
+    remoteVideo.current.srcObject = null;
+    candidatesQueue.current = [];
     setTarget(null);
     setInCall(false);
   }
@@ -267,7 +271,7 @@ function Home() {
   const handleRejectCall = () => {
     setIncomingcall(false)
     resetCall()
-    socket.current.emit('call_reject', ({ targetUser: answer.caller.id, callee: socket.current.id }))
+    socket.current.emit('call_reject', { targetUser: answer.caller.id, callee: socket.current.id })
   }
   const handleEnd = () => {
     setTarget(null)
