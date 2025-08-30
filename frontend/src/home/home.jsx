@@ -34,7 +34,6 @@ function Home() {
   let [inCall, setInCall] = useState(false)
   let [callReject, setCallReject] = useState(false)
   let [callEnded, setCallEnded] = useState(false)
-  const candidatesQueue = useRef([]);
   const location = useLocation()
   const formData = location.state?.formData
   const localVideo = useRef()
@@ -44,13 +43,7 @@ function Home() {
   const peerConnection = useRef()
   const navigate = useNavigate()
 
-  const flushCandidatesQueue =async()=>{
-    while(candidatesQueue.current.length>0){
-      const candidate = candidatesQueue.current.shift();
-    await peerConnection.current.addIceCandidate(candidate);
-    }
-
-  }
+ 
   useEffect(() => {
     if (!formData) {
       navigate("/")
@@ -98,7 +91,7 @@ function Home() {
           }
 
           await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-          await flushCandidatesQueue();
+          
           if (payload.sdp) {
             setIncomingcall(true)
           }
@@ -115,7 +108,7 @@ function Home() {
           setIsCalling(false)
           setInCall(true)
           peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-          await flushCandidatesQueue();
+          
         })
         socket.current.on('call_reject', () => {
           console.log('call reject')
@@ -148,14 +141,11 @@ function Home() {
 
         socket.current.on('ice-candidate',async(payload) => {
           if (peerConnection.current) {
-            if(peerConnection.current?.setRemoteDescription){
+            
               await  peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.route))
             }
             
-          }
-          else{
-              candidatesQueue.current.push(payload.route)
-          }
+          
 
         })
 
@@ -175,6 +165,7 @@ function Home() {
 
 
   }, [])
+  
   const createOffer = async ({ targetUser, user }) => {
     setTarget(user)
 
@@ -373,7 +364,7 @@ function Home() {
             <p>user rejected your call</p>
             <div className="popup-actions">
               <button className="ok-btn" onClick={() => { setCallReject(false), setTarget() }}>ok</button>
-              <button className="retry-btn" onClick={() => {resetCall(), createOffer({ targetUser: target.id, user: target }), setCallReject(false) }}>call Again</button>
+              
             </div>
           </div>
         </div>
