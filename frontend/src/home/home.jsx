@@ -123,29 +123,15 @@ function Home() {
         socket.current.on('call_reject', () => {
           console.log('call reject')
           resetCall()
-          setIsCalling(false)
           setCallReject(true)
         })
         socket.current.on('call_cancel', () => {
-          setIncomingcall(false)
+          resetCall()
         })
         socket.current.on('call_ended', () => {
 
           setCallEnded(true)
-          if (localStream) {
-            localStream.current.getTracks().forEach(track => track.stop());
-          }
-
-
-          if (peerConnection) {
-            peerConnection.current.close();
-          }
-
-
-          localStream.current = null;
-          setTarget(null)
-          setInCall(false);
-          peerConnection.current = null;
+          resetCall()
         })
 
 
@@ -245,28 +231,33 @@ function Home() {
 
 
   }
-  const resetCall=()=>{
-    if(peerConnection.current){
+  const resetCall = () => {
+    if (peerConnection.current) {
       peerConnection.current.close();
-      peerConnection.current=null;
-
+      peerConnection.current = null;
     }
-    if(localStream.current){
-      localStream.current.getTracks().forEach(track=>track.stop());
-      localStream.current=null;
+    if (localStream.current) {
+      localStream.current.getTracks().forEach(track => track.stop());
+      localStream.current = null;
     }
-    remoteVideo.current.srcObject = null;
+    if (remoteVideo.current) {
+      remoteVideo.current.srcObject = null;
+    }
     candidatesQueue.current = [];
-    setTarget(null);
+   
     setInCall(false);
+    setIncomingcall(false);
+    setIsCalling(false);
+    setAnswer(null);
+
   }
   const handleVideo = () => {
     pause ? (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = true), setPause(false)) : (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = false), setPause(true))
   }
   const handleCancelCall = () => {
-    setIsCalling(false)
-    socket.current.emit('call_canceled', { target, caller: socket.current.id })
-    setTarget(null)
+    resetCall()
+    socket.current.emit('call_canceled', { caller: socket.current.id })
+    
   }
   const handleRejectCall = () => {
     setIncomingcall(false)
@@ -274,11 +265,11 @@ function Home() {
     socket.current.emit('call_reject', { targetUser: answer.caller.id, callee: socket.current.id })
   }
   const handleEnd = () => {
-    setTarget(null)
     
+    resetCall()
     socket.current.emit('call_ended', { target: currentUser.partner, currentUser: currentUser.id })
     console.log("you are ending the call")
-    resetCall()
+    
   }
 
 

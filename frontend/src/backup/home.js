@@ -159,7 +159,7 @@ function Home() {
 
   }, [])
   const createOffer = async ({ targetUser, user }) => {
-    setTarget(user)
+    
 
     console.log("sending offer to ", targetUser)
     setIsCalling(true)
@@ -228,7 +228,7 @@ function Home() {
   const handleCancelCall = () => {
     setIsCalling(false)
     socket.current.emit('call_canceled', { target, caller: socket.current.id })
-    setTarget(null)
+    
   }
   const handleRejectCall = () => {
     setIncomingcall(false)
@@ -236,7 +236,7 @@ function Home() {
     socket.current.emit('call_reject', ({ targetUser: answer.caller.id, callee: socket.current.id }))
   }
   const handleEnd = () => {
-    setTarget(null)
+    
     socket.current.emit('call_ended', { target: currentUser.partner, currentUser: currentUser.id })
     console.log("you are ending the call")
     if (localStream) {
