@@ -34,6 +34,7 @@ function Home() {
   let [inCall, setInCall] = useState(false)
   let [callReject, setCallReject] = useState(false)
   let [callEnded, setCallEnded] = useState(false)
+  const candidatesQueue = useRef([]);
   const location = useLocation()
   const formData = location.state?.formData
   const localVideo = useRef()
@@ -91,7 +92,10 @@ function Home() {
           }
 
           await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-          
+          for (candidate of candidatesQueue.current){
+            await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate))
+          }
+          candidatesQueue.current = []
           if (payload.sdp) {
             setIncomingcall(true)
           }
@@ -108,6 +112,10 @@ function Home() {
           setIsCalling(false)
           setInCall(true)
           peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+          for (candidate of candidatesQueue.current){
+            await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate))
+          }
+          candidatesQueue.current = []
           
         })
         socket.current.on('call_reject', () => {
@@ -140,9 +148,13 @@ function Home() {
 
 
         socket.current.on('ice-candidate',async(payload) => {
-          if (peerConnection.current) {
+          if (peerConnection.current.remoteDescription) {
             
               await  peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.route))
+            }
+            else {
+              
+              candidatesQueue.current.push(payload.route);
             }
             
           
