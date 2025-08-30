@@ -72,8 +72,23 @@ function Home() {
           console.log(message)
         })
 
-        socket.current.on('offer', (payload) => {
+        socket.current.on('offer', async(payload) => {
           console.log(`offer recieved from ${payload.caller.id} to ${payload.target}`)
+          if (peerConnection.current) {
+            socket.current.emit("userBusy", { target: payload.caller.id });
+            return; // stop here, don’t create another peer connection
+          }
+          peerConnection.current = new RTCPeerConnection(configuration)
+          peerConnection.current.onicecandidate = (event) => {
+            if (event.candidate) {
+              socket.current.emit('ice-candidate', { target: payload.caller.id, route: event.candidate })
+            }
+          }
+          peerConnection.current.ontrack = (event) => {
+            remoteVideo.current.srcObject = event.streams[0]
+          }
+          await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+
           if (payload.sdp) {
             setIncomingcall(true)
           }
@@ -181,19 +196,12 @@ function Home() {
       localStream.current = stream
       localVideo.current.srcObject = stream
     }
-    peerConnection.current = new RTCPeerConnection(configuration)
-    peerConnection.current.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.current.emit('ice-candidate', { target: payload.caller.id, route: event.candidate })
-      }
-    }
-    peerConnection.current.ontrack = (event) => {
-      remoteVideo.current.srcObject = event.streams[0]
-    }
+   
+    
     localStream.current.getTracks().forEach(track => {
       peerConnection.current.addTrack(track, localStream.current)
     })
-    await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+   
     const answer = await peerConnection.current.createAnswer()
     await peerConnection.current.setLocalDescription(answer)
     socket.current.emit('answer', { target: payload.caller.id, sdp: answer, caller: currentUser })
