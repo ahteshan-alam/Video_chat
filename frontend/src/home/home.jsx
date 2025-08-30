@@ -92,7 +92,7 @@ function Home() {
           }
 
           await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-          for (candidate of candidatesQueue.current){
+          for (const candidate of candidatesQueue.current){
             await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate))
           }
           candidatesQueue.current = []
@@ -112,7 +112,7 @@ function Home() {
           setIsCalling(false)
           setInCall(true)
           peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-          for (candidate of candidatesQueue.current){
+          for (const candidate of candidatesQueue.current){
             await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate))
           }
           candidatesQueue.current = []
