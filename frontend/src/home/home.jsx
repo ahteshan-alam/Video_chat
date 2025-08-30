@@ -77,7 +77,7 @@ function Home() {
 
         socket.current.on('offer', async (payload) => {
           console.log(`offer recieved from ${payload.caller.id} to ${payload.target}`)
-          if (peerConnection.current) {
+          if (peerConnection.current || inCall) {
             socket.current.emit("userBusy", { target: payload.caller.id });
             return;
           }
@@ -88,13 +88,21 @@ function Home() {
             }
           }
           peerConnection.current.ontrack = (event) => {
-            remoteVideo.current.srcObject = event.streams[0]
-          }
+            const stream = event.streams[0];
+            if (remoteVideo.current.srcObject !== stream) {
+              remoteVideo.current.srcObject = stream;
+              const playPromise = remoteVideo.current.play();
+              if (playPromise !== undefined) {
+                playPromise.catch(e => console.error('Autoplay error:', e));
+              }
+            }
+          };
           remoteVideo.current.srcObject = null;
 
           await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-          for (const candidate of candidatesQueue.current){
-            await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate))
+          while (candidatesQueue.current.length) {
+            const candidate = candidatesQueue.current.shift();
+            await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
           }
           candidatesQueue.current = []
           if (payload.sdp) {
@@ -114,8 +122,9 @@ function Home() {
           setInCall(true)
           remoteVideo.current.srcObject = null;
           await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-          for (const candidate of candidatesQueue.current){
-            await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate))
+          while (candidatesQueue.current.length) {
+            const candidate = candidatesQueue.current.shift();
+            await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
           }
           candidatesQueue.current = []
           
@@ -137,14 +146,15 @@ function Home() {
 
 
         socket.current.on('ice-candidate',async(payload) => {
-          if (peerConnection.current.remoteDescription) {
-            
-              await  peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.route))
+          candidatesQueue.current.push(payload.route);
+          if (peerConnection.current && peerConnection.current.remoteDescription) {
+            while(candidatesQueue.current.length){
+              const candidate=candidatesQueue.current.shift();
+              await  peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate))
             }
-            else {
               
-              candidatesQueue.current.push(payload.route);
             }
+          
             
           
 
@@ -184,7 +194,15 @@ function Home() {
       }
     }
     peerConnection.current.ontrack = (event) => {
-      remoteVideo.current.srcObject = event.streams[0]
+      const stream = event.streams[0]
+      if(remoteVideo.current.srcObject!== stream){
+        remoteVideo.current.srcObject=stream
+        const playPromise = remoteVideo.current.play();
+         if (playPromise !== undefined) {
+      playPromise.catch(e => console.error('Autoplay error:', e));
+    }
+      }
+
     }
     localStream.current.getTracks().forEach(track => {
       peerConnection.current.addTrack(track, localStream.current)
@@ -261,8 +279,9 @@ function Home() {
   }
   const handleRejectCall = () => {
     setIncomingcall(false)
-    resetCall()
     socket.current.emit('call_reject', { targetUser: answer.caller.id, callee: socket.current.id })
+    resetCall()
+   
   }
   const handleEnd = () => {
     
