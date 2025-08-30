@@ -34,7 +34,6 @@ function Home() {
   let [inCall, setInCall] = useState(false)
   let [callReject, setCallReject] = useState(false)
   let [callEnded, setCallEnded] = useState(false)
-  const candidatesQueue = useRef([]);
   const location = useLocation()
   const formData = location.state?.formData
   const localVideo = useRef()
@@ -43,14 +42,6 @@ function Home() {
   const socket = useRef()
   const peerConnection = useRef()
   const navigate = useNavigate()
-
-  const flushCandidatesQueue =async()=>{
-    while(candidatesQueue.current.length>0){
-      const candidate = candidatesQueue.current.shift();
-    await peerConnection.current.addIceCandidate(candidate);
-    }
-
-  }
   useEffect(() => {
     if (!formData) {
       navigate("/")
@@ -96,9 +87,8 @@ function Home() {
           peerConnection.current.ontrack = (event) => {
             remoteVideo.current.srcObject = event.streams[0]
           }
-
           await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-          await flushCandidatesQueue();
+
           if (payload.sdp) {
             setIncomingcall(true)
           }
@@ -110,12 +100,11 @@ function Home() {
           setTarget(null)
           console.log(message)
         })
-        socket.current.on('answer', async(payload) => {
+        socket.current.on('answer', (payload) => {
           setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }))
           setIsCalling(false)
           setInCall(true)
           peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-          await flushCandidatesQueue();
         })
         socket.current.on('call_reject', () => {
           console.log('call reject')
@@ -146,15 +135,9 @@ function Home() {
 
 
 
-        socket.current.on('ice-candidate',async(payload) => {
+        socket.current.on('ice-candidate', (payload) => {
           if (peerConnection.current) {
-            if(peerConnection.current?.setRemoteDescription){
-              await  peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.route))
-            }
-            
-          }
-          else{
-              candidatesQueue.current.push(payload.route)
+            peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.route))
           }
 
         })
@@ -239,19 +222,6 @@ function Home() {
 
 
   }
-  const resetCall=()=>{
-    if(peerConnection.current){
-      peerConnection.current.close();
-      peerConnection.current=null;
-
-    }
-    if(localStream.current){
-      localStream.current.getTracks().forEach(track=>track.stop());
-      localStream.current=null;
-    }
-    setTarget(null);
-    setInCall(false);
-  }
   const handleVideo = () => {
     pause ? (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = true), setPause(false)) : (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = false), setPause(true))
   }
@@ -262,15 +232,31 @@ function Home() {
   }
   const handleRejectCall = () => {
     setIncomingcall(false)
-    resetCall()
+
     socket.current.emit('call_reject', ({ targetUser: answer.caller.id, callee: socket.current.id }))
   }
   const handleEnd = () => {
     setTarget(null)
-    
     socket.current.emit('call_ended', { target: currentUser.partner, currentUser: currentUser.id })
     console.log("you are ending the call")
-    resetCall()
+    if (localStream) {
+      localStream.current.getTracks().forEach(track => track.stop());
+      localStream.current = null;
+    }
+
+
+    if (peerConnection) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+
+
+
+    setCallEnded(true)
+    setInCall(false);
+
+
+
   }
 
 
@@ -373,7 +359,7 @@ function Home() {
             <p>user rejected your call</p>
             <div className="popup-actions">
               <button className="ok-btn" onClick={() => { setCallReject(false), setTarget() }}>ok</button>
-              <button className="retry-btn" onClick={() => {resetCall(), createOffer({ targetUser: target.id, user: target }), setCallReject(false) }}>call Again</button>
+              <button className="retry-btn" onClick={() => { createOffer({ targetUser: target.id, user: target }), setCallReject(false) }}>call Again</button>
             </div>
           </div>
         </div>
