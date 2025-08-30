@@ -120,6 +120,7 @@ function Home() {
         })
         socket.current.on('call_reject', () => {
           console.log('call reject')
+          resetCall()
           setIsCalling(false)
           setCallReject(true)
         })
