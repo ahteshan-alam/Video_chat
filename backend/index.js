@@ -61,7 +61,7 @@ io.on("connection", (socket) => {
         console.log('call reject')
         rooms[socket.room]?.find(client => { if (client.id === targetUser) { client.busy = false, client.partner = null } })
         rooms[socket.room]?.find(client => { if (client.id === callee) { client.busy = false, client.partner = null } })
-        io.to(targetUser).emit('call_reject')
+        io.to(targetUser).emit('call_declined')
     })
     socket.on('call_canceled', ({ target, caller }) => {
         console.log(target.username)

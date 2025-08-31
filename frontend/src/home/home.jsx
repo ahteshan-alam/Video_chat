@@ -32,7 +32,7 @@ function Home() {
   let [pause, setPause] = useState(false)
   let [target, setTarget] = useState()
   let [inCall, setInCall] = useState(false)
-  let [callReject, setCallReject] = useState(false)
+  let [callDeclined, setCallDeclined] = useState(false)
   let [callEnded, setCallEnded] = useState(false)
   const candidatesQueue = useRef([]);
   const location = useLocation()
@@ -129,10 +129,10 @@ function Home() {
           candidatesQueue.current = []
 
         })
-        socket.current.on('call_reject', () => {
+        socket.current.on('call_declined', () => {
           console.log('call reject')
           resetCall()
-          setCallReject(true)
+          setCallDeclined(true)
         })
         socket.current.on('call_cancel', () => {
           resetCall()
@@ -388,14 +388,14 @@ function Home() {
         </div>
       }
 
-      {callReject &&
+      {callDeclined &&
         <div className="popup-overlay">
           <div className="popup call-rejected">
             <div className="popup-icon">❌</div>
             <h3>Call Declined</h3>
-            <p>user rejected your call</p>
+            <p>{target} declined your call</p>
             <div className="popup-actions">
-              <button className="ok-btn" onClick={() => { setCallReject(false), setTarget() }}>ok</button>
+              <button className="ok-btn" onClick={() => { setCallDeclined(false), setTarget() }}>ok</button>
 
             </div>
           </div>
