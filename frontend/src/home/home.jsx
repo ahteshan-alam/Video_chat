@@ -314,9 +314,13 @@ function Home() {
           </div>
 
           <div className="video-controls">
-            {mute?<button className='muteBtn' onClick={handleAudio}>🔇 Unmute</button>:<button className='muteBtn' onClick={handleAudio}>🎤 Mute</button>}
-            {pause?<button className='muteBtn' onClick={handleVideo}>📹 Resume</button>:<button className='muteBtn' onClick={handleVideo}>📹 Pause</button>}
-            
+            <button className='muteBtn' onClick={handleAudio}>
+              {mute ? "🔇 Unmute" : "🎤 Mute"}
+            </button>
+            <button className='muteBtn' onClick={handleVideo}>
+              {pause ? "📹 Resume" : "📹 Pause"}
+            </button>
+
             {inCall && <button className='muteBtn end-call-btn' onClick={handleEnd}>❌ End</button>}
           </div>
         </section>
