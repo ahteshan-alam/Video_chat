@@ -33,11 +33,11 @@ io.on("connection", (socket) => {
 
     })
     socket.on('offer', (payload) => {
-
-
+        const room = rooms[socket.room];
+        if (!room) return;
         const targetUser = rooms[socket.room]?.find(client => client.id === payload.target)
 
-        if (!targetUser.busy) {
+        if (targetUser && !targetUser.busy) {
             io.to(payload.target).emit('offer', payload)
         }
         else {
@@ -46,13 +46,18 @@ io.on("connection", (socket) => {
 
     })
     socket.on('answer', (payload) => {
+        const room = rooms[socket.room];
+        if (!room) return;
         rooms[socket.room].forEach(client => { if (client.id === payload.caller.id || client.id === payload.target) { client.busy = true } })
         const caller = rooms[socket.room]?.find(client => client.id === payload.caller.id)
         const callee = rooms[socket.room]?.find(client => client.id === payload.target)
-        rooms[socket.room].forEach(client => { if (client.id === payload.caller.id) client.partner = callee.id })
-        rooms[socket.room].forEach(client => { if (client.id === payload.target) client.partner = caller.id })
-        console.log(caller, callee)
-        io.to(payload.target).emit('answer', payload)
+        if (caller && callee){
+            rooms[socket.room].forEach(client => { if (client.id === payload.caller.id) client.partner = callee.id })
+            rooms[socket.room].forEach(client => { if (client.id === payload.target) client.partner = caller.id })
+            console.log(caller, callee)
+            io.to(payload.target).emit('answer', payload)
+        }
+       
     })
     socket.on('ice-candidate', (payload) => {
         io.to(payload.target).emit('ice-candidate', payload)
@@ -70,7 +75,9 @@ io.on("connection", (socket) => {
         io.to(target.id).emit('call_cancel')
     })
     socket.on('call_ended', ({ target}) => {
-        console.log("call ended")
+        const room = rooms[socket.room];
+        if (!room) return;
+        
         rooms[socket.room].forEach(client =>{if( client.id === target){ client.partner=null,client.busy=false}});
        
         rooms[socket.room].forEach(client =>{if( client.id === socket.id){ client.partner=null,client.busy=false}});
@@ -79,19 +86,32 @@ io.on("connection", (socket) => {
 
 
     socket.on("disconnect", () => {
-        let partner
-        if (rooms[socket.room]) {
-            rooms[socket.room].forEach(client => { if (client.id === socket.id) { partner = client.partner; client.partner = null, client.busy = false } })
-            rooms[socket.room].forEach(client => { if (client.id === partner) { client.busy = false, client.partner = null } })
-            rooms[socket.room] = rooms[socket.room].filter(client => client.id !== socket.id)
-            const members = rooms[socket.room]
+        const room = rooms[socket.room];
+        if (!room) return;
+        const disconnectingUser = room.find(client => client.id === socket.id);
+        if (!disconnectingUser) return;
 
-            if (rooms[socket.room].length === 0)
-                delete rooms[socket.room]
+        if(disconnectingUser.partner){
+            const partner=room.find(client=> client.id===disconnectingUser.partner)
 
-            socket.to(socket.room).emit('user-left', { message: `${socket.username} left the room`, members })
-
+            if(partner){
+                partner.partner=null
+               partner.busy=false
+               io.to(partner.id).emit('call_ended');
+            }
         }
+        rooms[socket.room] = rooms[socket.room].filter(client => client.id !== socket.id)
+        const members = rooms[socket.room]
+        socket.to(socket.room).emit('user-left', { message: `${socket.username} left the room`, members })
+        if (rooms[socket.room].length === 0){
+                delete rooms[socket.room]
+        }
+
+
+
+
+        
+        
     })
 
 

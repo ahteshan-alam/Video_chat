@@ -169,6 +169,13 @@ function Home() {
 
         }
       })
+      .catch(
+        (error)=>{
+          alert("Camera and microphone access is required to use the app.");
+          navigate("/")
+        },
+        
+      )
 
 
 
@@ -393,7 +400,7 @@ function Home() {
           <div className="popup call-rejected">
             <div className="popup-icon">❌</div>
             <h3>Call Declined</h3>
-            <p>{target.username} declined your call</p>
+            <p>{target?.username || 'The user'} declined your call</p>
             <div className="popup-actions">
               <button className="ok-btn" onClick={() => { setCallDeclined(false), setTarget() }}>ok</button>
 
