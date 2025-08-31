@@ -303,7 +303,7 @@ function Home() {
         <section className="video-section">
           <div className='video'>
             <div className="local-video-container">
-              <video ref={localVideo} autoPlay muted playsInline></video>
+              <video ref={localVideo} autoPlay playsInline></video>
               <div className="video-label">You</div>
             </div>
 
