@@ -44,7 +44,7 @@ function Home() {
   const peerConnection = useRef()
   const navigate = useNavigate()
 
- 
+
   useEffect(() => {
     if (!formData) {
       navigate("/")
@@ -116,7 +116,7 @@ function Home() {
           setTarget(null)
           console.log(message)
         })
-        socket.current.on('answer', async(payload) => {
+        socket.current.on('answer', async (payload) => {
           setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }))
           setIsCalling(false)
           setInCall(true)
@@ -127,7 +127,7 @@ function Home() {
             await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
           }
           candidatesQueue.current = []
-          
+
         })
         socket.current.on('call_reject', () => {
           console.log('call reject')
@@ -145,18 +145,18 @@ function Home() {
 
 
 
-        socket.current.on('ice-candidate',async(payload) => {
+        socket.current.on('ice-candidate', async (payload) => {
           candidatesQueue.current.push(payload.route);
           if (peerConnection.current && peerConnection.current.remoteDescription) {
-            while(candidatesQueue.current.length){
-              const candidate=candidatesQueue.current.shift();
-              await  peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate))
+            while (candidatesQueue.current.length) {
+              const candidate = candidatesQueue.current.shift();
+              await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate))
             }
-              
-            }
-          
-            
-          
+
+          }
+
+
+
 
         })
 
@@ -176,7 +176,7 @@ function Home() {
 
 
   }, [])
-  
+
   const createOffer = async ({ targetUser, user }) => {
     setTarget(user)
 
@@ -195,12 +195,12 @@ function Home() {
     }
     peerConnection.current.ontrack = (event) => {
       const stream = event.streams[0]
-      if(remoteVideo.current.srcObject!== stream){
-        remoteVideo.current.srcObject=stream
+      if (remoteVideo.current.srcObject !== stream) {
+        remoteVideo.current.srcObject = stream
         const playPromise = remoteVideo.current.play();
-         if (playPromise !== undefined) {
-      playPromise.catch(e => console.error('Autoplay error:', e));
-    }
+        if (playPromise !== undefined) {
+          playPromise.catch(e => console.error('Autoplay error:', e));
+        }
       }
 
     }
@@ -262,7 +262,7 @@ function Home() {
       remoteVideo.current.srcObject = null;
     }
     candidatesQueue.current = [];
-   
+
     setInCall(false);
     setIncomingcall(false);
     setIsCalling(false);
@@ -275,20 +275,20 @@ function Home() {
   const handleCancelCall = () => {
     resetCall()
     socket.current.emit('call_canceled', { caller: socket.current.id })
-    
+
   }
   const handleRejectCall = () => {
     setIncomingcall(false)
     socket.current.emit('call_reject', { targetUser: answer.caller.id, callee: socket.current.id })
     resetCall()
-   
+
   }
   const handleEnd = () => {
-    
+
     resetCall()
     socket.current.emit('call_ended', { target: currentUser.partner, currentUser: currentUser.id })
     console.log("you are ending the call")
-    
+
   }
 
 
@@ -314,9 +314,10 @@ function Home() {
           </div>
 
           <div className="video-controls">
-            <button className='muteBtn' onClick={handleAudio}>mute</button>
-            <button className='muteBtn' onClick={handleVideo}>video</button>
-            {inCall && <button className='muteBtn end-call-btn' onClick={handleEnd}>end</button>}
+            {mute?<button className='muteBtn' onClick={handleAudio}>🔇 Unmute</button>:<button className='muteBtn' onClick={handleAudio}>🎤 Mute</button>}
+            {pause?<button className='muteBtn' onClick={handleVideo}>📹 Resume</button>:<button className='muteBtn' onClick={handleVideo}>📹 Pause</button>}
+            
+            {inCall && <button className='muteBtn end-call-btn' onClick={handleEnd}>❌ End</button>}
           </div>
         </section>
 
@@ -391,7 +392,7 @@ function Home() {
             <p>user rejected your call</p>
             <div className="popup-actions">
               <button className="ok-btn" onClick={() => { setCallReject(false), setTarget() }}>ok</button>
-              
+
             </div>
           </div>
         </div>
