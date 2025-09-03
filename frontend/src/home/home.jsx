@@ -160,6 +160,7 @@ function Home() {
         setIncomingcall(true);
       }
       setAnswer(payload);
+      console.log("sending answer")
     });
 
     socket.current.on('userBusy', ({ message }) => {
