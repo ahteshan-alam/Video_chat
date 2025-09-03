@@ -3,6 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
+import { v4 as uuidv4 } from 'uuid';
 const app = express()
 app.use(cors())
 const server = createServer(app)
@@ -15,10 +16,15 @@ const io = new Server(server, {
 })
 
 let rooms = {};
+const userData = new Map();
 io.on("connection", (socket) => {
-    socket.on('new-user', ({ id, formData }) => {
+    socket.on('join-room', ({ id, formData }) => {
+        if (socket.currRoom) {
+            socket.leave(socket.currRoom);
+        }
         socket.room = formData.room
         socket.username = formData.username
+        userData.set(socket.id, { username:formData.username, room:formData.room });
         if (!rooms[formData.room]) {
             rooms[formData.room] = []
         }
@@ -27,11 +33,35 @@ io.on("connection", (socket) => {
         socket.join(formData.room)
         const members = rooms[formData.room]
 
-        socket.broadcast.to(formData.room).emit('user-joined', { message: `${formData.username} joined the room`, members })
-        io.to(id).emit('welcome', { message: `${formData.username} welcome to chat`, members })
+        socket.broadcast.to(formData.room).emit('user-joined', {  message: `${socket.username} joined the chat`,
+        type: "notification",
+        id: uuidv4(),
+        members })
+        io.to(id).emit('welcome', {type: "notification",
+        message: `welcome to the room ${socket.username}`,
+        id: uuidv4(), members })
 
 
     })
+    socket.on("message", ({ message, username }) => {
+        const user = userData.get(socket.id);
+        if (!user || !user.room) return;
+        io.to(user.room).emit("send-message", {
+          message,
+          username,
+          type: "message",
+          id: uuidv4(),
+          time: new Date().toISOString(),
+          userId: socket.id
+        });
+      });
+      socket.on("typing", ({ username, room }) => {
+        if (username === "") {
+          socket.to(room).emit("user-typing", { message: "" });
+        } else {
+          socket.to(room).emit("user-typing", { message: `${username} is typing ...` });
+        }
+      });
     socket.on('offer', (payload) => {
         const room = rooms[socket.room];
         if (!room) return;
@@ -41,6 +71,7 @@ io.on("connection", (socket) => {
             io.to(payload.target).emit('offer', payload)
         }
         else {
+            
             io.to(payload.caller.id).emit('userBusy', { message: `${payload.target} is busy in another call` })
         }
 
@@ -102,7 +133,11 @@ io.on("connection", (socket) => {
         }
         rooms[socket.room] = rooms[socket.room].filter(client => client.id !== socket.id)
         const members = rooms[socket.room]
-        socket.to(socket.room).emit('user-left', { message: `${socket.username} left the room`, members })
+        socket.to(socket.room).emit('user-left', {  message: `${socket.username} left the chat`,
+        type: "notification",
+        id: uuidv4(),
+        members })
+        userData.delete(socket.id);
         if (rooms[socket.room].length === 0){
                 delete rooms[socket.room]
         }

@@ -24,6 +24,7 @@ io.on("connection", (socket) => {
         }
         socket.room = formData.room
         socket.username = formData.username
+        userData.set(socket.id, { username:formData.username, room:formData.room });
         if (!rooms[formData.room]) {
             rooms[formData.room] = []
         }

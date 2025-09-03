@@ -32,8 +32,9 @@ function Home() {
   let [pause, setPause] = useState(false)
   let [target, setTarget] = useState()
   let [inCall, setInCall] = useState(false)
-  let [callReject, setCallReject] = useState(false)
+  let [callDeclined, setCallDeclined] = useState(false)
   let [callEnded, setCallEnded] = useState(false)
+  const candidatesQueue = useRef([]);
   const location = useLocation()
   const formData = location.state?.formData
   const localVideo = useRef()
@@ -42,6 +43,8 @@ function Home() {
   const socket = useRef()
   const peerConnection = useRef()
   const navigate = useNavigate()
+
+
   useEffect(() => {
     if (!formData) {
       navigate("/")
@@ -74,7 +77,7 @@ function Home() {
 
         socket.current.on('offer', async (payload) => {
           console.log(`offer recieved from ${payload.caller.id} to ${payload.target}`)
-          if (peerConnection.current) {
+          if (peerConnection.current || inCall) {
             socket.current.emit("userBusy", { target: payload.caller.id });
             return;
           }
@@ -85,10 +88,23 @@ function Home() {
             }
           }
           peerConnection.current.ontrack = (event) => {
-            remoteVideo.current.srcObject = event.streams[0]
-          }
-          await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+            const stream = event.streams[0];
+            if (remoteVideo.current.srcObject !== stream) {
+              remoteVideo.current.srcObject = stream;
+              const playPromise = remoteVideo.current.play();
+              if (playPromise !== undefined) {
+                playPromise.catch(e => console.error('Autoplay error:', e));
+              }
+            }
+          };
+          remoteVideo.current.srcObject = null;
 
+          await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+          while (candidatesQueue.current.length) {
+            const candidate = candidatesQueue.current.shift();
+            await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+          }
+          candidatesQueue.current = []
           if (payload.sdp) {
             setIncomingcall(true)
           }
@@ -100,45 +116,47 @@ function Home() {
           setTarget(null)
           console.log(message)
         })
-        socket.current.on('answer', (payload) => {
+        socket.current.on('answer', async (payload) => {
           setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }))
           setIsCalling(false)
           setInCall(true)
-          peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+          remoteVideo.current.srcObject = null;
+          await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+          while (candidatesQueue.current.length) {
+            const candidate = candidatesQueue.current.shift();
+            await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+          }
+          candidatesQueue.current = []
+
         })
-        socket.current.on('call_reject', () => {
+        socket.current.on('call_declined', () => {
           console.log('call reject')
-          setIsCalling(false)
-          setCallReject(true)
+          resetCall()
+          setCallDeclined(true)
         })
         socket.current.on('call_cancel', () => {
-          setIncomingcall(false)
+          resetCall()
         })
         socket.current.on('call_ended', () => {
 
           setCallEnded(true)
-          if (localStream) {
-            localStream.current.getTracks().forEach(track => track.stop());
-          }
-
-
-          if (peerConnection) {
-            peerConnection.current.close();
-          }
-
-
-          localStream.current = null;
-          setTarget(null)
-          setInCall(false);
-          peerConnection.current = null;
+          resetCall()
         })
 
 
 
-        socket.current.on('ice-candidate', (payload) => {
-          if (peerConnection.current) {
-            peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.route))
+        socket.current.on('ice-candidate', async (payload) => {
+          candidatesQueue.current.push(payload.route);
+          if (peerConnection.current && peerConnection.current.remoteDescription) {
+            while (candidatesQueue.current.length) {
+              const candidate = candidatesQueue.current.shift();
+              await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate))
+            }
+
           }
+
+
+
 
         })
 
@@ -151,6 +169,13 @@ function Home() {
 
         }
       })
+      .catch(
+        (error)=>{
+          alert("Camera and microphone access is required to use the app.");
+          navigate("/")
+        },
+        
+      )
 
 
 
@@ -158,6 +183,7 @@ function Home() {
 
 
   }, [])
+
   const createOffer = async ({ targetUser, user }) => {
     setTarget(user)
 
@@ -175,7 +201,15 @@ function Home() {
       }
     }
     peerConnection.current.ontrack = (event) => {
-      remoteVideo.current.srcObject = event.streams[0]
+      const stream = event.streams[0]
+      if (remoteVideo.current.srcObject !== stream) {
+        remoteVideo.current.srcObject = stream
+        const playPromise = remoteVideo.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(e => console.error('Autoplay error:', e));
+        }
+      }
+
     }
     localStream.current.getTracks().forEach(track => {
       peerConnection.current.addTrack(track, localStream.current)
@@ -222,40 +256,45 @@ function Home() {
 
 
   }
+  const resetCall = () => {
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+    if (localStream.current) {
+      localStream.current.getTracks().forEach(track => track.stop());
+      localStream.current = null;
+    }
+    if (remoteVideo.current) {
+      remoteVideo.current.srcObject = null;
+    }
+    candidatesQueue.current = [];
+
+    setInCall(false);
+    setIncomingcall(false);
+    setIsCalling(false);
+    setAnswer(null);
+
+  }
   const handleVideo = () => {
     pause ? (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = true), setPause(false)) : (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = false), setPause(true))
   }
   const handleCancelCall = () => {
-    setIsCalling(false)
-    socket.current.emit('call_canceled', { target, caller: socket.current.id })
-    setTarget(null)
+    resetCall()
+    socket.current.emit('call_canceled', { caller: socket.current.id,target })
+
   }
   const handleRejectCall = () => {
     setIncomingcall(false)
+    socket.current.emit('call_reject', { targetUser: answer.caller.id, callee: socket.current.id })
+    resetCall()
 
-    socket.current.emit('call_reject', ({ targetUser: answer.caller.id, callee: socket.current.id }))
   }
   const handleEnd = () => {
-    setTarget(null)
+
+    resetCall()
     socket.current.emit('call_ended', { target: currentUser.partner, currentUser: currentUser.id })
     console.log("you are ending the call")
-    if (localStream) {
-      localStream.current.getTracks().forEach(track => track.stop());
-      localStream.current = null;
-    }
-
-
-    if (peerConnection) {
-      peerConnection.current.close();
-      peerConnection.current = null;
-    }
-
-
-
-    setCallEnded(true)
-    setInCall(false);
-
-
 
   }
 
@@ -271,7 +310,7 @@ function Home() {
         <section className="video-section">
           <div className='video'>
             <div className="local-video-container">
-              <video ref={localVideo} autoPlay muted playsInline></video>
+              <video ref={localVideo} autoPlay playsInline></video>
               <div className="video-label">You</div>
             </div>
 
@@ -282,9 +321,14 @@ function Home() {
           </div>
 
           <div className="video-controls">
-            <button className='muteBtn' onClick={handleAudio}>mute</button>
-            <button className='muteBtn' onClick={handleVideo}>video</button>
-            {inCall && <button className='muteBtn end-call-btn' onClick={handleEnd}>end</button>}
+            <button className='muteBtn' onClick={handleAudio}>
+              {mute ? "🔇 Unmute" : "🎤 Mute"}
+            </button>
+            <button className='muteBtn' onClick={handleVideo}>
+              {pause ? "📹 Resume" : "📹 Pause"}
+            </button>
+
+            {inCall && <button className='muteBtn end-call-btn' onClick={handleEnd}>❌ End</button>}
           </div>
         </section>
 
@@ -351,15 +395,15 @@ function Home() {
         </div>
       }
 
-      {callReject &&
+      {callDeclined &&
         <div className="popup-overlay">
           <div className="popup call-rejected">
             <div className="popup-icon">❌</div>
             <h3>Call Declined</h3>
-            <p>user rejected your call</p>
+            <p>{target?.username || 'The user'} declined your call</p>
             <div className="popup-actions">
-              <button className="ok-btn" onClick={() => { setCallReject(false), setTarget() }}>ok</button>
-              <button className="retry-btn" onClick={() => { createOffer({ targetUser: target.id, user: target }), setCallReject(false) }}>call Again</button>
+              <button className="ok-btn" onClick={() => { setCallDeclined(false), setTarget() }}>ok</button>
+
             </div>
           </div>
         </div>
