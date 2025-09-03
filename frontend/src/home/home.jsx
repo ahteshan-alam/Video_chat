@@ -208,6 +208,7 @@ function Home() {
           await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
         }
       }
+      console.log("recieved ice")
     });
 
     return () => {
