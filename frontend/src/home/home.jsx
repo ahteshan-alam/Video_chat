@@ -133,6 +133,7 @@ function Home() {
         socket.current.emit('userBusy', { target: payload.caller.id });
         return;
       }
+      setVideoCall(true)
       peerConnection.current = new RTCPeerConnection(configuration);
       peerConnection.current.onicecandidate = (event) => {
         if (event.candidate) {
