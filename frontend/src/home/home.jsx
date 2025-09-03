@@ -406,10 +406,10 @@ function Home() {
           {showOnlineUsers && (
             <div className="online-dropdown">
               <div className="dropdown-header">
-                Online Users ({onlineUsers.length})
+                Online Users ({otherusers.length})
               </div>
               <div className="online-users-list">
-                {onlineUsers.map((client) => (
+                {otherusers.map((client) => (
                   <div key={client.id} className="online-user-item">
                     <div className="user-info">
                       <span className="user-online-indicator">●</span>
