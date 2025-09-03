@@ -149,13 +149,14 @@ function Home() {
           }
         }
       };
-
+      remoteVideo.current.srcObject = null;
       await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
       while (candidatesQueue.current.length) {
         const candidate = candidatesQueue.current.shift();
         await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
       }
       candidatesQueue.current = [];
+      console.log(payload)
       if (payload.sdp) {
         setIncomingcall(true);
       }
