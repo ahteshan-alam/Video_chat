@@ -2751,3 +2751,99 @@ body::before {
     height: 60px;
   }
 }
+ /* Update .online-user-item to use flexbox */
+ .online-user-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* This is the key change */
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  transition: all 0.2s ease;
+  position: relative;
+  border-left: 2px solid transparent;
+ }
+ .user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+ }
+ 
+ /* === Call Button Styling === */
+ .callbtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.1rem; /* Slightly bigger initial size */
+  padding: 0.5rem;
+  margin-right: -0.5rem; /* Pull it slightly to the right */
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  flex-shrink: 0; /* Prevent the button from shrinking on smaller screens */
+ }
+ 
+ .callbtn:hover {
+  color: var(--accent-blue);
+  transform: scale(1.2) rotate(10deg);
+  text-shadow: 0 0 10px rgba(0, 128, 255, 0.6);
+ }
+ 
+ /* === Media Queries for Call Button === */
+ @media screen and (max-width: 768px) {
+  .callbtn {
+   font-size: 1rem;
+   padding: 0.4rem;
+  }
+ }
+ @media screen and (max-width: 480px) {
+  .callbtn {
+   font-size: 0.9rem;
+   padding: 0.3rem;
+  }
+ }
+ /* Update the call button styling */
+.callbtn {
+ background: none;
+ border: none;
+ color: var(--text-secondary); /* Initial color for the icon */
+ cursor: pointer;
+ font-size: 1.1em; /* Use em for better scaling */
+ padding: 0.5em; /* Use em for padding */
+ margin-right: -0.5em;
+ transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+ flex-shrink: 0;
+ 
+ /* New styling for a more integrated look */
+ display: inline-flex; /* Use flex to center the icon */
+ align-items: center;
+ justify-content: center;
+ width: 2.2em;
+ height: 2.2em;
+ border-radius: 50%; /* Make it a circle */
+ border: 1px solid transparent; /* A transparent border for the hover effect */
+}
+
+/* Hover effect for the call button */
+.callbtn:hover {
+ color: var(--accent-green); /* Change icon color on hover */
+ transform: scale(1.2); /* A more pronounced scale up */
+ background: rgba(0, 255, 157, 0.1); /* Soft background on hover */
+ border-color: var(--border-accent); /* Accent border color */
+ box-shadow: 0 0 10px rgba(0, 255, 157, 0.5); /* Glowing effect */
+}
+
+/* Mobile Responsiveness for the call button */
+@media screen and (max-width: 768px) {
+ .callbtn {
+     font-size: 1em;
+     width: 2em;
+     height: 2em;
+ }
+}
+
+@media screen and (max-width: 480px) {
+ .callbtn {
+     font-size: 0.9em;
+     width: 1.8em;
+     height: 1.8em;
+ }
+}
