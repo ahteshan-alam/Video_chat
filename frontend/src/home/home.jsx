@@ -413,7 +413,7 @@ function Home() {
                   <div key={user.id} className="online-user-item">
                     <div className="user-info">
                       <span className="user-online-indicator">●</span>
-                      <span className="username">{client.username}</span>
+                      <span className="username">{user.username}</span>
                     </div>
                     <button className="callbtn" onClick={() => createOffer({ targetUser: user.id, user })}>
                       <i className="fa-solid fa-video"></i>
