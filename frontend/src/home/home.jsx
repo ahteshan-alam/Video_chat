@@ -405,17 +405,24 @@ function Home() {
           </button>
           {showOnlineUsers && (
             <div className="online-dropdown">
-              <div className="dropdown-header">Online Users ({otherusers.length})</div>
+              <div className="dropdown-header">
+                Online Users ({onlineUsers.length})
+              </div>
               <div className="online-users-list">
-                {otherusers.map((client) => (
+                {onlineUsers.map((client) => (
                   <div key={client.id} className="online-user-item">
-                    <span className="user-online-indicator">●</span>
-                    <span className="username">{client.username}</span>
+                    <div className="user-info">
+                      <span className="user-online-indicator">●</span>
+                      <span className="username">{client.username}</span>
+                    </div>
+                    <button className="callbtn" onClick={() => createOffer({ targetUser: user.id, user })}>
+                      <i className="fa-solid fa-video"></i>
+                    </button>
                   </div>
                 ))}
               </div>
             </div>
-          )}
+          )} 
         </div>
       </div>
 
