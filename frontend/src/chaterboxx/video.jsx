@@ -22,6 +22,10 @@ const configuration = {
 
 
 function Home() {
+ const location = useLocation();
+ const formData = location.state?.formData
+ const username = formData.username;
+ const room = formData.room;
   let [otherusers, setOtherusers] = useState([])
   let [currentUser, setCurrentUser] = useState({})
   let [incomingcall, setIncomingcall] = useState(false)
@@ -34,16 +38,58 @@ function Home() {
   let [inCall, setInCall] = useState(false)
   let [callDeclined, setCallDeclined] = useState(false)
   let [callEnded, setCallEnded] = useState(false)
+  let [videoCall,setVideoCall]=useState(false)
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [showOnlineUsers, setShowOnlineUsers] = useState(false);
+  const [currUserId, setCurrUserId] = useState("");
+  const [typeMsg, setTypeMsg] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const candidatesQueue = useRef([]);
-  const location = useLocation()
-  const formData = location.state?.formData
+  const socket = useRef(null);
+  const typingTimeout = useRef(null);
   const localVideo = useRef()
   const localStream = useRef()
   const remoteVideo = useRef()
-  const socket = useRef()
   const peerConnection = useRef()
   const navigate = useNavigate()
 
+  const handleChange = (e) => {
+    setMessage(e.target.value);
+
+    if (!isTyping) {
+      setIsTyping(true);
+      socket.current.emit("typing", { username, room });
+    }
+
+    if (typingTimeout.current) {
+      clearTimeout(typingTimeout.current);
+    }
+
+    typingTimeout.current = setTimeout(() => {
+      setIsTyping(false);
+      socket.current.emit("typing", { username: "", room });
+    }, 1000);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setIsTyping(false);
+
+    if (typingTimeout.current) {
+      clearTimeout(typingTimeout.current);
+    }
+
+    socket.current.emit("typing", { username: "", room });
+    socket.current.emit("message", { message, username });
+    setMessage("");
+  };
+
+  const toggleOnlineUsers = () => {
+    setShowOnlineUsers((prev) => !prev);
+  };
 
   useEffect(() => {
     if (!formData) {
@@ -56,24 +102,38 @@ function Home() {
         localStream.current = stream
         socket.current = io("https://video-chat-9zhu.onrender.com/");
         socket.current.on('connect', () => {
+        setCurrUserId(socket.current.id);
           setCurrentUser({ username: formData.username, id: socket.current.id })
-          socket.current.emit('new-user', { id: socket.current.id, formData })
+          socket.current.emit('join-room', { id: socket.current.id, formData })
         })
-        socket.current.on('user-joined', ({ message, members }) => {
+        socket.current.on('user-joined', ({ message, members,id,type }) => {
           setOtherusers(members.filter((client) => client.id !== socket.current.id))
-
-          console.log(message)
+          setMessages((prev) => [...prev, { message, type, id }]);
+         
         })
-        socket.current.on('welcome', ({ message, members }) => {
+        socket.current.on('welcome', ({ message, members,id,type }) => {
 
-          console.log(message)
+         
           setOtherusers(members.filter((client) => client.id !== socket.current.id))
+          setMessages((prev) => [...prev, { message, type, id }]);
+
+            setIsLoading(false);
 
         })
-        socket.current.on("user-left", ({ message, members }) => {
+        socket.current.on("send-message", ({ message, username, type, id, time, userId }) => {
+            setMessages((prev) => [
+              ...prev,
+              { message, username, type, id, time, userId }
+            ]);
+          });
+        socket.current.on("user-left", ({ message, members,id,type }) => {
           setOtherusers(members.filter(client => client.id !== socket.current.id))
-          console.log(message)
+          setMessages((prev) => [...prev, { message, type, id }]);
+          
         })
+        socket.current.on("user-typing", ({ message }) => {
+            setTypeMsg(message);
+          });
 
         socket.current.on('offer', async (payload) => {
           console.log(`offer recieved from ${payload.caller.id} to ${payload.target}`)
@@ -161,6 +221,9 @@ function Home() {
         })
 
         return () => {
+        if (typingTimeout.current) {
+                clearTimeout(typingTimeout.current);
+              }
           if (socket.current) {
             socket.current.disconnect()
             socket.current.off()
@@ -183,8 +246,23 @@ function Home() {
 
 
   }, [])
+  if (isLoading) {
+    return (
+      <div className="chatbox">
+        <div className="header">
+          <h1>ChatterBox</h1>
+        </div>
+
+        <div className="loading-area">
+          <h2 className="loading-text">Connecting to ChatterBox...</h2>
+          <div className="loader"></div>
+        </div>
+      </div>
+    );
+  }
 
   const createOffer = async ({ targetUser, user }) => {
+    setVideoCall(true)
     setTarget(user)
 
     console.log("sending offer to ", targetUser)
@@ -280,12 +358,14 @@ function Home() {
     pause ? (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = true), setPause(false)) : (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = false), setPause(true))
   }
   const handleCancelCall = () => {
+    setVideoCall(false)
     resetCall()
     socket.current.emit('call_canceled', { caller: socket.current.id,target })
 
   }
   const handleRejectCall = () => {
     setIncomingcall(false)
+    setVideoCall(false)
     socket.current.emit('call_reject', { targetUser: answer.caller.id, callee: socket.current.id })
     resetCall()
 
@@ -301,127 +381,127 @@ function Home() {
 
 
   return (
-    <div className='App'>
-      <header className="app-header">
-        <h1>My Video Call App {currentUser.username}</h1>
-      </header>
+    videoCall && <div className='App'>
+    <header className="app-header">
+      <h1>My Video Call App {currentUser.username}</h1>
+    </header>
 
-      <main className="main-content">
-        <section className="video-section">
-          <div className='video'>
-            <div className="local-video-container">
-              <video ref={localVideo} autoPlay playsInline></video>
-              <div className="video-label">You</div>
-            </div>
-
-            <div className="remote-video-container">
-              <video ref={remoteVideo} autoPlay playsInline></video>
-              <div className="video-label">Remote</div>
-            </div>
+    <main className="main-content">
+      <section className="video-section">
+        <div className='video'>
+          <div className="local-video-container">
+            <video ref={localVideo} autoPlay playsInline></video>
+            <div className="video-label">You</div>
           </div>
 
-          <div className="video-controls">
-            <button className='muteBtn' onClick={handleAudio}>
-              {mute ? "🔇 Unmute" : "🎤 Mute"}
-            </button>
-            <button className='muteBtn' onClick={handleVideo}>
-              {pause ? "📹 Resume" : "📹 Pause"}
-            </button>
-
-            {inCall && <button className='muteBtn end-call-btn' onClick={handleEnd}>❌ End</button>}
-          </div>
-        </section>
-
-        <aside className="sidebar">
-          <div className='list'>
-            <div className="list-header">
-              <p>Online Users ({otherusers.length})</p>
-            </div>
-            <div className="list-content">
-              <ul>
-                {otherusers.length > 0 ? otherusers.map(user =>
-                (<li key={user.id} className="user-item">
-                  <span className="user-info">
-                    <span className="online-indicator"></span>
-                    <span className="username">{user.username}</span>
-                  </span>
-                  <button className="call-btn" onClick={() => createOffer({ targetUser: user.id, user: user })}>call</button>
-                </li>)
-                ) : (<li className="no-users">no users online</li>)}
-              </ul>
-            </div>
-          </div>
-        </aside>
-      </main>
-
-
-      {incomingcall &&
-        <div className="popup-overlay">
-          <div className="popup incoming-call">
-            <div className="popup-icon">📞</div>
-            <h3>Incoming Call</h3>
-            <p>Call from <span className="caller-name">{answer.caller.username}</span></p>
-            <div className="popup-actions">
-              <button className="accept-btn" onClick={() => sendAnswer(answer)}>Accept</button>
-              <button className="reject-btn" onClick={handleRejectCall}>Reject</button>
-            </div>
+          <div className="remote-video-container">
+            <video ref={remoteVideo} autoPlay playsInline></video>
+            <div className="video-label">Remote</div>
           </div>
         </div>
-      }
 
-      {isCalling &&
-        <div className="popup-overlay">
-          <div className="popup calling">
-            <div className="calling-spinner"></div>
-            <h3>Calling...</h3>
-            <p>Calling <span className="target-name">{target.username}</span></p>
-            <div className="popup-actions">
-              <button className="cancel-btn" onClick={handleCancelCall}>cancel</button>
-            </div>
+        <div className="video-controls">
+          <button className='muteBtn' onClick={handleAudio}>
+            {mute ? "🔇 Unmute" : "🎤 Mute"}
+          </button>
+          <button className='muteBtn' onClick={handleVideo}>
+            {pause ? "📹 Resume" : "📹 Pause"}
+          </button>
+
+          {inCall && <button className='muteBtn end-call-btn' onClick={handleEnd}>❌ End</button>}
+        </div>
+      </section>
+
+      <aside className="sidebar">
+        <div className='list'>
+          <div className="list-header">
+            <p>Online Users ({otherusers.length})</p>
+          </div>
+          <div className="list-content">
+            <ul>
+              {otherusers.length > 0 ? otherusers.map(user =>
+              (<li key={user.id} className="user-item">
+                <span className="user-info">
+                  <span className="online-indicator"></span>
+                  <span className="username">{user.username}</span>
+                </span>
+                <button className="call-btn" onClick={() => createOffer({ targetUser: user.id, user: user })}>call</button>
+              </li>)
+              ) : (<li className="no-users">no users online</li>)}
+            </ul>
           </div>
         </div>
-      }
+      </aside>
+    </main>
 
-      {userBusy &&
-        <div className="popup-overlay">
-          <div className="popup user-busy">
-            <div className="popup-icon">📵</div>
-            <h3>User Busy</h3>
-            <p>user busy in another call</p>
-            <div className="popup-actions">
-              <button className="ok-btn" onClick={() => setUserBusy(false)}>ok</button>
-            </div>
+
+    {incomingcall &&
+      <div className="popup-overlay">
+        <div className="popup incoming-call">
+          <div className="popup-icon">📞</div>
+          <h3>Incoming Call</h3>
+          <p>Call from <span className="caller-name">{answer.caller.username}</span></p>
+          <div className="popup-actions">
+            <button className="accept-btn" onClick={() => sendAnswer(answer)}>Accept</button>
+            <button className="reject-btn" onClick={handleRejectCall}>Reject</button>
           </div>
         </div>
-      }
+      </div>
+    }
 
-      {callDeclined &&
-        <div className="popup-overlay">
-          <div className="popup call-rejected">
-            <div className="popup-icon">❌</div>
-            <h3>Call Declined</h3>
-            <p>{target?.username || 'The user'} declined your call</p>
-            <div className="popup-actions">
-              <button className="ok-btn" onClick={() => { setCallDeclined(false), setTarget() }}>ok</button>
-
-            </div>
+    {isCalling &&
+      <div className="popup-overlay">
+        <div className="popup calling">
+          <div className="calling-spinner"></div>
+          <h3>Calling...</h3>
+          <p>Calling <span className="target-name">{target.username}</span></p>
+          <div className="popup-actions">
+            <button className="cancel-btn" onClick={handleCancelCall}>cancel</button>
           </div>
         </div>
-      }
+      </div>
+    }
 
-      {callEnded &&
-        <div className="popup-overlay">
-          <div className="popup call-ended">
-            <div className="popup-icon">📴</div>
-            <h3>Call Ended</h3>
-            <p>call ended</p>
-            <div className="popup-actions">
-              <button className="ok-btn" onClick={() => setCallEnded(false)}>ok</button>
-            </div>
+    {userBusy &&
+      <div className="popup-overlay">
+        <div className="popup user-busy">
+          <div className="popup-icon">📵</div>
+          <h3>User Busy</h3>
+          <p>user busy in another call</p>
+          <div className="popup-actions">
+            <button className="ok-btn" onClick={() => {setUserBusy(false),setVideoCall(false)}}>ok</button>
           </div>
         </div>
-      }
-    </div>
+      </div>
+    }
+
+    {callDeclined &&
+      <div className="popup-overlay">
+        <div className="popup call-rejected">
+          <div className="popup-icon">❌</div>
+          <h3>Call Declined</h3>
+          <p>{target?.username || 'The user'} declined your call</p>
+          <div className="popup-actions">
+            <button className="ok-btn" onClick={() => { setCallDeclined(false), setTarget(null),setVideoCall(false) }}>ok</button>
+
+          </div>
+        </div>
+      </div>
+    }
+
+    {callEnded &&
+      <div className="popup-overlay">
+        <div className="popup call-ended">
+          <div className="popup-icon">📴</div>
+          <h3>Call Ended</h3>
+          <p>call ended</p>
+          <div className="popup-actions">
+            <button className="ok-btn" onClick={() =>{ setCallEnded(false),setVideoCall(false)}}>ok</button>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
   );
 }
 
