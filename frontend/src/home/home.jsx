@@ -400,7 +400,7 @@ function Home() {
 
   return (
     <div className="chatbox">
-      <div className="header">
+      {!videoCall && <div className="header">
         <h1>ChatterBox</h1>
         <div className="online-section">
           <button className="online-count-btn" onClick={toggleOnlineUsers}>
@@ -428,7 +428,7 @@ function Home() {
             </div>
           )} 
         </div>
-      </div>
+      </div>}
 
       <div className="messages-container">
         <ScrollToBottom className="messages">
