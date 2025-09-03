@@ -409,8 +409,8 @@ function Home() {
                 Online Users ({otherusers.length})
               </div>
               <div className="online-users-list">
-                {otherusers.map((client) => (
-                  <div key={client.id} className="online-user-item">
+                {otherusers.map((user) => (
+                  <div key={user.id} className="online-user-item">
                     <div className="user-info">
                       <span className="user-online-indicator">●</span>
                       <span className="username">{client.username}</span>
