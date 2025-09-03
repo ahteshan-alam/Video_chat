@@ -409,13 +409,13 @@ function Home() {
                 Online Users ({otherusers.length})
               </div>
               <div className="online-users-list">
-                {otherusers.map((user) => (
-                  <div key={user.id} className="online-user-item">
+                {otheruserss.map((client) => (
+                  <div key={client.id} className="online-user-item">
                     <div className="user-info">
                       <span className="user-online-indicator">●</span>
-                      <span className="username">{user.username}</span>
+                      <span className="username">{client.username}</span>
                     </div>
-                    <button className="callbtn" onClick={() => createOffer({ targetUser: user.id, user })}>
+                    <button className="callbtn" onClick={() => createOffer({ targetUser: client.id, user:client })}>
                       <i className="fa-solid fa-video"></i>
                     </button>
                   </div>
