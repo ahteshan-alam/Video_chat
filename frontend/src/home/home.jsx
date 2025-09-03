@@ -1,66 +1,66 @@
-
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import './home.css'
+import './home.css';
+import { io } from 'socket.io-client';
+import ScrollToBottom from 'react-scroll-to-bottom';
+import Message from './Message'; // Assuming Message component is defined elsewhere
 
-import { io } from 'socket.io-client'
 const configuration = {
   iceServers: [
     {
       urls: [
-        "stun:stun.l.google.com:19302",
-        "stun:global.xirsys.net",
-        "turn:global.xirsys.net:3478?transport=udp",
-        "turn:global.xirsys.net:3478?transport=tcp",
-        "turns:global.xirsys.net:5349?transport=tcp"
+        'stun:stun.l.google.com:19302',
+        'stun:global.xirsys.net',
+        'turn:global.xirsys.net:3478?transport=udp',
+        'turn:global.xirsys.net:3478?transport=tcp',
+        'turns:global.xirsys.net:5349?transport=tcp',
       ],
-      username: "ahteshan",
-      credential: "061c8212-7c6c-11f0-9de2-0242ac140002"
-    }
-  ]
+      username: 'ahteshan',
+      credential: '061c8212-7c6c-11f0-9de2-0242ac140002',
+    },
+  ],
 };
-
 
 function Home() {
   const location = useLocation();
-  const formData = location.state?.formData
-  const username = formData.username;
-  const room = formData.room;
-  let [otherusers, setOtherusers] = useState([])
-  let [currentUser, setCurrentUser] = useState({})
-  let [incomingcall, setIncomingcall] = useState(false)
-  let [isCalling, setIsCalling] = useState(false)
-  let [userBusy, setUserBusy] = useState(false)
-  let [answer, setAnswer] = useState()
-  let [mute, setMute] = useState(false)
-  let [pause, setPause] = useState(false)
-  let [target, setTarget] = useState()
-  let [inCall, setInCall] = useState(false)
-  let [callDeclined, setCallDeclined] = useState(false)
-  let [callEnded, setCallEnded] = useState(false)
-  let [videoCall, setVideoCall] = useState(false)
-  const [message, setMessage] = useState("");
+  const formData = location.state?.formData;
+  const username = formData?.username;
+  const room = formData?.room;
+  const [otherusers, setOtherusers] = useState([]);
+  const [currentUser, setCurrentUser] = useState({});
+  const [incomingcall, setIncomingcall] = useState(false);
+  const [isCalling, setIsCalling] = useState(false);
+  const [userBusy, setUserBusy] = useState(false);
+  const [answer, setAnswer] = useState(null);
+  const [mute, setMute] = useState(false);
+  const [pause, setPause] = useState(false);
+  const [target, setTarget] = useState(null);
+  const [inCall, setInCall] = useState(false);
+  const [callDeclined, setCallDeclined] = useState(false);
+  const [callEnded, setCallEnded] = useState(false);
+  const [videoCall, setVideoCall] = useState(false);
+  const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
   const [showOnlineUsers, setShowOnlineUsers] = useState(false);
-  const [currUserId, setCurrUserId] = useState("");
-  const [typeMsg, setTypeMsg] = useState("");
+  const [currUserId, setCurrUserId] = useState('');
+  const [typeMsg, setTypeMsg] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const candidatesQueue = useRef([]);
   const socket = useRef(null);
   const typingTimeout = useRef(null);
-  const localVideo = useRef()
-  const localStream = useRef()
-  const remoteVideo = useRef()
-  const peerConnection = useRef()
-  const navigate = useNavigate()
+  const localVideo = useRef(null);
+  const localStream = useRef(null);
+  const remoteVideo = useRef(null);
+  const peerConnection = useRef(null);
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setMessage(e.target.value);
 
     if (!isTyping) {
       setIsTyping(true);
-      socket.current.emit("typing", { username, room });
+      socket.current.emit('typing', { username, room });
     }
 
     if (typingTimeout.current) {
@@ -69,7 +69,7 @@ function Home() {
 
     typingTimeout.current = setTimeout(() => {
       setIsTyping(false);
-      socket.current.emit("typing", { username: "", room });
+      socket.current.emit('typing', { username: '', room });
     }, 1000);
   };
 
@@ -81,9 +81,9 @@ function Home() {
       clearTimeout(typingTimeout.current);
     }
 
-    socket.current.emit("typing", { username: "", room });
-    socket.current.emit("message", { message, username });
-    setMessage("");
+    socket.current.emit('typing', { username: '', room });
+    socket.current.emit('message', { message, username });
+    setMessage('');
   };
 
   const toggleOnlineUsers = () => {
@@ -92,267 +92,265 @@ function Home() {
 
   useEffect(() => {
     if (!formData) {
-      navigate("/")
+      navigate('/');
       return;
     }
-    
-        socket.current = io("https://video-chat-9zhu.onrender.com/");
-        socket.current.on('connect', () => {
-          setCurrUserId(socket.current.id);
-          setCurrentUser({ username: formData.username, id: socket.current.id })
-          socket.current.emit('join-room', { id: socket.current.id, formData })
-        })
-        socket.current.on('user-joined', ({ message, members, id, type }) => {
-          setOtherusers(members.filter((client) => client.id !== socket.current.id))
-          setMessages((prev) => [...prev, { message, type, id }]);
 
-        })
-        socket.current.on('welcome', ({ message, members, id, type }) => {
+    socket.current = io('https://video-chat-9zhu.onrender.com/');
+    socket.current.on('connect', () => {
+      setCurrUserId(socket.current.id);
+      setCurrentUser({ username: formData.username, id: socket.current.id });
+      socket.current.emit('join-room', { id: socket.current.id, formData });
+    });
 
+    socket.current.on('user-joined', ({ message, members, id, type }) => {
+      setOtherusers(members.filter((client) => client.id !== socket.current.id));
+      setMessages((prev) => [...prev, { message, type, id }]);
+    });
 
-          setOtherusers(members.filter((client) => client.id !== socket.current.id))
-          setMessages((prev) => [...prev, { message, type, id }]);
+    socket.current.on('welcome', ({ message, members, id, type }) => {
+      setOtherusers(members.filter((client) => client.id !== socket.current.id));
+      setMessages((prev) => [...prev, { message, type, id }]);
+      setIsLoading(false);
+    });
 
-          setIsLoading(false);
+    socket.current.on('send-message', ({ message, username, type, id, time, userId }) => {
+      setMessages((prev) => [...prev, { message, username, type, id, time, userId }]);
+    });
 
-        })
-        socket.current.on("send-message", ({ message, username, type, id, time, userId }) => {
-          setMessages((prev) => [
-            ...prev,
-            { message, username, type, id, time, userId }
-          ]);
-        });
-        socket.current.on("user-left", ({ message, members, id, type }) => {
-          setOtherusers(members.filter(client => client.id !== socket.current.id))
-          setMessages((prev) => [...prev, { message, type, id }]);
+    socket.current.on('user-left', ({ message, members, id, type }) => {
+      setOtherusers(members.filter((client) => client.id !== socket.current.id));
+      setMessages((prev) => [...prev, { message, type, id }]);
+    });
 
-        })
-        socket.current.on("user-typing", ({ message }) => {
-          setTypeMsg(message);
-        });
+    socket.current.on('user-typing', ({ message }) => {
+      setTypeMsg(message);
+    });
 
-        socket.current.on('offer', async (payload) => {
-          console.log(`offer recieved from ${payload.caller.id} to ${payload.target}`)
-          if (peerConnection.current || inCall) {
-            socket.current.emit("userBusy", { target: payload.caller.id });
-            return;
-          }
-          peerConnection.current = new RTCPeerConnection(configuration)
-          peerConnection.current.onicecandidate = (event) => {
-            if (event.candidate) {
-              socket.current.emit('ice-candidate', { target: payload.caller.id, route: event.candidate })
-            }
-          }
-          peerConnection.current.ontrack = (event) => {
-            const stream = event.streams[0];
-            if (remoteVideo.current.srcObject !== stream) {
-              remoteVideo.current.srcObject = stream;
-              const playPromise = remoteVideo.current.play();
-              if (playPromise !== undefined) {
-                playPromise.catch(e => console.error('Autoplay error:', e));
-              }
-            }
-          };
-          remoteVideo.current.srcObject = null;
-
-          await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-          while (candidatesQueue.current.length) {
-            const candidate = candidatesQueue.current.shift();
-            await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
-          }
-          candidatesQueue.current = []
-          if (payload.sdp) {
-            setIncomingcall(true)
-          }
-          setAnswer(payload)
-        })
-        socket.current.on('userBusy', ({ message }) => {
-          setUserBusy(true)
-          setIsCalling(false)
-          setTarget(null)
-          console.log(message)
-        })
-        socket.current.on('answer', async (payload) => {
-          setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }))
-          setIsCalling(false)
-          setInCall(true)
-          remoteVideo.current.srcObject = null;
-          await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-          while (candidatesQueue.current.length) {
-            const candidate = candidatesQueue.current.shift();
-            await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
-          }
-          candidatesQueue.current = []
-
-        })
-        socket.current.on('call_declined', () => {
-          console.log('call reject')
-          resetCall()
-          setCallDeclined(true)
-        })
-        socket.current.on('call_cancel', () => {
-          resetCall()
-        })
-        socket.current.on('call_ended', () => {
-
-          setCallEnded(true)
-          resetCall()
-        })
-
-
-
-        socket.current.on('ice-candidate', async (payload) => {
-          candidatesQueue.current.push(payload.route);
-          if (peerConnection.current && peerConnection.current.remoteDescription) {
-            while (candidatesQueue.current.length) {
-              const candidate = candidatesQueue.current.shift();
-              await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate))
-            }
-
-          }
-
-
-
-
-        })
-
-        return () => {
-          if (typingTimeout.current) {
-            clearTimeout(typingTimeout.current);
-          }
-          if (localStream.current) {
-            localStream.current.getTracks().forEach(track => track.stop());
-            localStream.current = null;
-          }
-          if (socket.current) {
-            socket.current.disconnect()
-            socket.current.off()
-          }
-
-
+    socket.current.on('offer', async (payload) => {
+      console.log(`offer received from ${payload.caller.id} to ${payload.target}`);
+      if (peerConnection.current || inCall) {
+        socket.current.emit('userBusy', { target: payload.caller.id });
+        return;
+      }
+      peerConnection.current = new RTCPeerConnection(configuration);
+      peerConnection.current.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.current.emit('ice-candidate', { target: payload.caller.id, route: event.candidate });
         }
-      
-      
+      };
+      peerConnection.current.ontrack = (event) => {
+        const stream = event.streams[0];
+        if (remoteVideo.current && remoteVideo.current.srcObject !== stream) {
+          remoteVideo.current.srcObject = stream;
+          const playPromise = remoteVideo.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch((e) => console.error('Autoplay error:', e));
+          }
+        }
+      };
 
+      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+      while (candidatesQueue.current.length) {
+        const candidate = candidatesQueue.current.shift();
+        await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+      candidatesQueue.current = [];
+      if (payload.sdp) {
+        setIncomingcall(true);
+      }
+      setAnswer(payload);
+    });
 
+    socket.current.on('userBusy', ({ message }) => {
+      setUserBusy(true);
+      setIsCalling(false);
+      setTarget(null);
+      console.log(message);
+    });
 
+    socket.current.on('answer', async (payload) => {
+      setCurrentUser((prev) => ({ ...prev, partner: payload.caller.id }));
+      setIsCalling(false);
+      setInCall(true);
+      if (remoteVideo.current) {
+        remoteVideo.current.srcObject = null;
+      }
+      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+      while (candidatesQueue.current.length) {
+        const candidate = candidatesQueue.current.shift();
+        await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+      candidatesQueue.current = [];
+    });
 
+    socket.current.on('call_declined', () => {
+      console.log('call reject');
+      resetCall();
+      setCallDeclined(true);
+    });
 
+    socket.current.on('call_cancel', () => {
+      resetCall();
+    });
 
-  }, [])
-  if (isLoading) {
-    return (
-      <div className="chatbox">
-        <div className="header">
-          <h1>ChatterBox</h1>
-        </div>
+    socket.current.on('call_ended', () => {
+      setCallEnded(true);
+      resetCall();
+    });
 
-        <div className="loading-area">
-          <h2 className="loading-text">Connecting to ChatterBox...</h2>
-          <div className="loader"></div>
-        </div>
-      </div>
-    );
-  }
+    socket.current.on('ice-candidate', async (payload) => {
+      candidatesQueue.current.push(payload.route);
+      if (peerConnection.current && peerConnection.current.remoteDescription) {
+        while (candidatesQueue.current.length) {
+          const candidate = candidatesQueue.current.shift();
+          await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+      }
+    });
+
+    return () => {
+      if (typingTimeout.current) {
+        clearTimeout(typingTimeout.current);
+      }
+      if (localStream.current) {
+        localStream.current.getTracks().forEach((track) => track.stop());
+        localStream.current = null;
+      }
+      if (socket.current) {
+        socket.current.disconnect();
+        socket.current.off();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (videoCall && localStream.current && localVideo.current) {
+      localVideo.current.srcObject = localStream.current;
+    }
+  }, [videoCall]);
 
   const createOffer = async ({ targetUser, user }) => {
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then((stream) => {
-        localVideo.current.srcObject = stream
-        localStream.current = stream})
-        .catch(
-          (error) => {
-            console.log(error)
-            alert("Camera and microphone access is required to use the app.",error);
-            console.log(error)
-            navigate("/")
-            console.log(error)
-          },
-  
-        )
-    setVideoCall(true)
-    setTarget(user)
+    try {
+      setVideoCall(true);
+      setTarget(user);
+      setIsCalling(true);
 
- 
-    setIsCalling(true)
-    if (!localStream.current) {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-      localStream.current = stream
-      localVideo.current.srcObject = stream
-    }
-    peerConnection.current = new RTCPeerConnection(configuration)
-    peerConnection.current.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.current.emit('ice-candidate', { target: targetUser, route: event.candidate })
-      }
-    }
-    peerConnection.current.ontrack = (event) => {
-      const stream = event.streams[0]
-      if (remoteVideo.current.srcObject !== stream) {
-        remoteVideo.current.srcObject = stream
-        const playPromise = remoteVideo.current.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(e => console.error('Autoplay error:', e));
+      if (!localStream.current) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        localStream.current = stream;
+        if (localVideo.current) {
+          localVideo.current.srcObject = stream;
         }
       }
 
+      peerConnection.current = new RTCPeerConnection(configuration);
+      peerConnection.current.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.current.emit('ice-candidate', { target: targetUser, route: event.candidate });
+        }
+      };
+      peerConnection.current.ontrack = (event) => {
+        const stream = event.streams[0];
+        if (remoteVideo.current && remoteVideo.current.srcObject !== stream) {
+          remoteVideo.current.srcObject = stream;
+          const playPromise = remoteVideo.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch((e) => console.error('Autoplay error:', e));
+          }
+        }
+      };
+
+      localStream.current.getTracks().forEach((track) => {
+        peerConnection.current.addTrack(track, localStream.current);
+      });
+
+      const offer = await peerConnection.current.createOffer();
+      await peerConnection.current.setLocalDescription(offer);
+
+      socket.current.emit('offer', {
+        sdp: offer,
+        target: targetUser,
+        caller: { username: currentUser.username, id: socket.current.id },
+      });
+      console.log('sent offer to ', targetUser);
+    } catch (error) {
+      console.error('Error in createOffer:', error);
+      alert('Failed to start call. Camera and microphone access is required.');
+      setVideoCall(false);
+      setIsCalling(false);
+      setTarget(null);
+      navigate('/');
     }
-    localStream.current.getTracks().forEach(track => {
-      peerConnection.current.addTrack(track, localStream.current)
-    })
+  };
 
-    const offer = await peerConnection.current.createOffer()
-    await peerConnection.current.setLocalDescription(offer)
-
-    socket.current.emit('offer', { sdp: offer, target: targetUser, caller: { username: currentUser.username, id: socket.current.id } })
-    console.log("sent offer to ", targetUser)
-
-
-  }
   const createAnswer = async ({ payload }) => {
-    setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }))
-    if (!localStream.current) {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-      localStream.current = stream
-      localVideo.current.srcObject = stream
+    try {
+      setCurrentUser((prev) => ({ ...prev, partner: payload.caller.id }));
+
+      if (!localStream.current) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        localStream.current = stream;
+        if (localVideo.current) {
+          localVideo.current.srcObject = stream;
+        }
+      }
+
+      localStream.current.getTracks().forEach((track) => {
+        peerConnection.current.addTrack(track, localStream.current);
+      });
+
+      const answer = await peerConnection.current.createAnswer();
+      await peerConnection.current.setLocalDescription(answer);
+      socket.current.emit('answer', { target: payload.caller.id, sdp: answer, caller: currentUser });
+    } catch (error) {
+      console.error('Error in createAnswer:', error);
+      alert('Failed to accept call. Camera and microphone access is required.');
+      setIncomingcall(false);
     }
+  };
 
-
-    localStream.current.getTracks().forEach(track => {
-      peerConnection.current.addTrack(track, localStream.current)
-    })
-
-    const answer = await peerConnection.current.createAnswer()
-    await peerConnection.current.setLocalDescription(answer)
-    socket.current.emit('answer', { target: payload.caller.id, sdp: answer, caller: currentUser })
-
-  }
   const sendAnswer = (answer) => {
+    setVideoCall(true);
+    createAnswer({ payload: answer });
+    setIncomingcall(false);
+    setInCall(true);
+    console.log('call accepted');
+    setCurrentUser((prev) => ({ ...prev, partner: answer.caller.id }));
+  };
 
-    createAnswer({ payload: answer })
-
-    setIncomingcall(false)
-    setInCall(true)
-    console.log("call accepted")
-    setCurrentUser(prev => ({ ...prev, partner: answer.caller.id }))
-
-  }
   const handleAudio = () => {
-    mute ? (localStream.current.getAudioTracks().forEach(audioTrack => audioTrack.enabled = true), setMute(false)) : (localStream.current.getAudioTracks().forEach(audioTrack => audioTrack.enabled = false), setMute(true))
+    if (localStream.current) {
+      localStream.current.getAudioTracks().forEach((audioTrack) => {
+        audioTrack.enabled = !mute;
+      });
+      setMute(!mute);
+    }
+  };
 
+  const handleVideo = () => {
+    if (localStream.current) {
+      localStream.current.getVideoTracks().forEach((videoTrack) => {
+        videoTrack.enabled = !pause;
+      });
+      setPause(!pause);
+    }
+  };
 
-  }
   const resetCall = () => {
     if (peerConnection.current) {
       peerConnection.current.close();
       peerConnection.current = null;
     }
     if (localStream.current) {
-      localStream.current.getTracks().forEach(track => track.stop());
+      localStream.current.getTracks().forEach((track) => track.stop());
       localStream.current = null;
     }
     if (remoteVideo.current) {
       remoteVideo.current.srcObject = null;
+    }
+    if (localVideo.current) {
+      localVideo.current.srcObject = null;
     }
     candidatesQueue.current = [];
 
@@ -360,33 +358,41 @@ function Home() {
     setIncomingcall(false);
     setIsCalling(false);
     setAnswer(null);
+    setVideoCall(false);
+    setTarget(null);
+  };
 
-  }
-  const handleVideo = () => {
-    pause ? (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = true), setPause(false)) : (localStream.current.getVideoTracks().forEach(videoTrack => videoTrack.enabled = false), setPause(true))
-  }
   const handleCancelCall = () => {
-    setVideoCall(false)
-    resetCall()
-    socket.current.emit('call_canceled', { caller: socket.current.id, target })
+    resetCall();
+    socket.current.emit('call_canceled', { caller: socket.current.id, target });
+  };
 
-  }
   const handleRejectCall = () => {
-    setIncomingcall(false)
-    setVideoCall(false)
-    socket.current.emit('call_reject', { targetUser: answer.caller.id, callee: socket.current.id })
-    resetCall()
+    setIncomingcall(false);
+    setVideoCall(false);
+    socket.current.emit('call_reject', { targetUser: answer?.caller.id, callee: socket.current.id });
+    resetCall();
+  };
 
-  }
   const handleEnd = () => {
+    resetCall();
+    socket.current.emit('call_ended', { target: currentUser.partner, currentUser: currentUser.id });
+    console.log('you are ending the call');
+  };
 
-    resetCall()
-    socket.current.emit('call_ended', { target: currentUser.partner, currentUser: currentUser.id })
-    console.log("you are ending the call")
-
+  if (isLoading) {
+    return (
+      <div className="chatbox">
+        <div className="header">
+          <h1>ChatterBox</h1>
+        </div>
+        <div className="loading-area">
+          <h2 className="loading-text">Connecting to ChatterBox...</h2>
+          <div className="loader"></div>
+        </div>
+      </div>
+    );
   }
-
-
 
   return (
     <div className="chatbox">
@@ -397,12 +403,9 @@ function Home() {
             <span className="online-indicator">●</span>
             <span>{otherusers.length} online</span>
           </button>
-
           {showOnlineUsers && (
             <div className="online-dropdown">
-              <div className="dropdown-header">
-                Online Users ({otherusers.length})
-              </div>
+              <div className="dropdown-header">Online Users ({otherusers.length})</div>
               <div className="online-users-list">
                 {otherusers.map((client) => (
                   <div key={client.id} className="online-user-item">
@@ -419,21 +422,14 @@ function Home() {
       <div className="messages-container">
         <ScrollToBottom className="messages">
           {messages.map((item) =>
-            item.type === "notification" ? (
-              <h2 key={item.id} className="notification">
-                {item.message}
-              </h2>
+            item.type === 'notification' ? (
+              <h2 key={item.id} className="notification">{item.message}</h2>
             ) : (
               <Message key={item.id} data={item} currUserId={currUserId} />
-            )
+            ),
           )}
         </ScrollToBottom>
-
-        {typeMsg && (
-          <div className="typing-indicator">
-            {typeMsg}
-          </div>
-        )}
+        {typeMsg && <div className="typing-indicator">{typeMsg}</div>}
       </div>
 
       <div className="footer">
@@ -450,129 +446,171 @@ function Home() {
         </form>
       </div>
 
-
-      {videoCall && <div className='App'>
-        <header className="app-header">
-          <h1>My Video Call App {currentUser.username}</h1>
-        </header>
-
-        <main className="main-content">
-          <section className="video-section">
-            <div className='video'>
-              <div className="local-video-container">
-                <video ref={localVideo} autoPlay playsInline></video>
-                <div className="video-label">You</div>
+      {videoCall && (
+        <div className="App">
+          <header className="app-header">
+            <h1>My Video Call App {currentUser.username}</h1>
+          </header>
+          <main className="main-content">
+            <section className="video-section">
+              <div className="video">
+                <div className="local-video-container">
+                  <video ref={localVideo} autoPlay playsInline muted></video>
+                  <div className="video-label">You</div>
+                </div>
+                <div className="remote-video-container">
+                  <video ref={remoteVideo} autoPlay playsInline></video>
+                  <div className="video-label">Remote</div>
+                </div>
               </div>
-
-              <div className="remote-video-container">
-                <video ref={remoteVideo} autoPlay playsInline></video>
-                <div className="video-label">Remote</div>
+              <div className="video-controls">
+                <button className="muteBtn" onClick={handleAudio}>
+                  {mute ? '🔇 Unmute' : '🎤 Mute'}
+                </button>
+                <button className="muteBtn" onClick={handleVideo}>
+                  {pause ? '📹 Resume' : '📹 Pause'}
+                </button>
+                {inCall && (
+                  <button className="muteBtn end-call-btn" onClick={handleEnd}>
+                    ❌ End
+                  </button>
+                )}
               </div>
-            </div>
-
-            <div className="video-controls">
-              <button className='muteBtn' onClick={handleAudio}>
-                {mute ? "🔇 Unmute" : "🎤 Mute"}
-              </button>
-              <button className='muteBtn' onClick={handleVideo}>
-                {pause ? "📹 Resume" : "📹 Pause"}
-              </button>
-
-              {inCall && <button className='muteBtn end-call-btn' onClick={handleEnd}>❌ End</button>}
-            </div>
-          </section>
-
-          <aside className="sidebar">
-            <div className='list'>
-              <div className="list-header">
-                <p>Online Users ({otherusers.length})</p>
+            </section>
+            <aside className="sidebar">
+              <div className="list">
+                <div className="list-header">
+                  <p>Online Users ({otherusers.length})</p>
+                </div>
+                <div className="list-content">
+                  <ul>
+                    {otherusers.length > 0 ? (
+                      otherusers.map((user) => (
+                        <li key={user.id} className="user-item">
+                          <span className="user-info">
+                            <span className="online-indicator"></span>
+                            <span className="username">{user.username}</span>
+                          </span>
+                          <button
+                            className="call-btn"
+                            onClick={() => createOffer({ targetUser: user.id, user })}
+                          >
+                            call
+                          </button>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="no-users">no users online</li>
+                    )}
+                  </ul>
+                </div>
               </div>
-              <div className="list-content">
-                <ul>
-                  {otherusers.length > 0 ? otherusers.map(user =>
-                  (<li key={user.id} className="user-item">
-                    <span className="user-info">
-                      <span className="online-indicator"></span>
-                      <span className="username">{user.username}</span>
-                    </span>
-                    <button className="call-btn" onClick={() => createOffer({ targetUser: user.id, user: user })}>call</button>
-                  </li>)
-                  ) : (<li className="no-users">no users online</li>)}
-                </ul>
-              </div>
-            </div>
-          </aside>
-        </main>
+            </aside>
+          </main>
 
-
-        {incomingcall &&
-          <div className="popup-overlay">
-            <div className="popup incoming-call">
-              <div className="popup-icon">📞</div>
-              <h3>Incoming Call</h3>
-              <p>Call from <span className="caller-name">{answer.caller.username}</span></p>
-              <div className="popup-actions">
-                <button className="accept-btn" onClick={() => sendAnswer(answer)}>Accept</button>
-                <button className="reject-btn" onClick={handleRejectCall}>Reject</button>
-              </div>
-            </div>
-          </div>
-        }
-
-        {isCalling &&
-          <div className="popup-overlay">
-            <div className="popup calling">
-              <div className="calling-spinner"></div>
-              <h3>Calling...</h3>
-              <p>Calling <span className="target-name">{target.username}</span></p>
-              <div className="popup-actions">
-                <button className="cancel-btn" onClick={handleCancelCall}>cancel</button>
-              </div>
-            </div>
-          </div>
-        }
-
-        {userBusy &&
-          <div className="popup-overlay">
-            <div className="popup user-busy">
-              <div className="popup-icon">📵</div>
-              <h3>User Busy</h3>
-              <p>user busy in another call</p>
-              <div className="popup-actions">
-                <button className="ok-btn" onClick={() => { setUserBusy(false), setVideoCall(false) }}>ok</button>
+          {incomingcall && (
+            <div className="popup-overlay">
+              <div className="popup incoming-call">
+                <div className="popup-icon">📞</div>
+                <h3>Incoming Call</h3>
+                <p>
+                  Call from <span className="caller-name">{answer?.caller.username}</span>
+                </p>
+                <div className="popup-actions">
+                  <button className="accept-btn" onClick={() => sendAnswer(answer)}>
+                    Accept
+                  </button>
+                  <button className="reject-btn" onClick={handleRejectCall}>
+                    Reject
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        }
+          )}
 
-        {callDeclined &&
-          <div className="popup-overlay">
-            <div className="popup call-rejected">
-              <div className="popup-icon">❌</div>
-              <h3>Call Declined</h3>
-              <p>{target?.username || 'The user'} declined your call</p>
-              <div className="popup-actions">
-                <button className="ok-btn" onClick={() => { setCallDeclined(false), setTarget(null), setVideoCall(false) }}>ok</button>
-
+          {isCalling && (
+            <div className="popup-overlay">
+              <div className="popup calling">
+                <div className="calling-spinner"></div>
+                <h3>Calling...</h3>
+                <p>
+                  Calling <span className="target-name">{target?.username}</span>
+                </p>
+                <div className="popup-actions">
+                  <button className="cancel-btn" onClick={handleCancelCall}>
+                    cancel
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        }
+          )}
 
-        {callEnded &&
-          <div className="popup-overlay">
-            <div className="popup call-ended">
-              <div className="popup-icon">📴</div>
-              <h3>Call Ended</h3>
-              <p>call ended</p>
-              <div className="popup-actions">
-                <button className="ok-btn" onClick={() => { setCallEnded(false), setVideoCall(false) }}>ok</button>
+          {userBusy && (
+            <div className="popup-overlay">
+              <div className="popup user-busy">
+                <div className="popup-icon">📵</div>
+                <h3>User Busy</h3>
+                <p>user busy in another call</p>
+                <div className="popup-actions">
+                  <button
+                    className="ok-btn"
+                    onClick={() => {
+                      setUserBusy(false);
+                      setVideoCall(false);
+                    }}
+                  >
+                    ok
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        }
-      </div>
-      }</div>
+          )}
+
+          {callDeclined && (
+            <div className="popup-overlay">
+              <div className="popup call-rejected">
+                <div className="popup-icon">❌</div>
+                <h3>Call Declined</h3>
+                <p>{target?.username || 'The user'} declined your call</p>
+                <div className="popup-actions">
+                  <button
+                    className="ok-btn"
+                    onClick={() => {
+                      setCallDeclined(false);
+                      setTarget(null);
+                      setVideoCall(false);
+                    }}
+                  >
+                    ok
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {callEnded && (
+            <div className="popup-overlay">
+              <div className="popup call-ended">
+                <div className="popup-icon">📴</div>
+                <h3>Call Ended</h3>
+                <p>call ended</p>
+                <div className="popup-actions">
+                  <button
+                    className="ok-btn"
+                    onClick={() => {
+                      setCallEnded(false);
+                      setVideoCall(false);
+                    }}
+                  >
+                    ok
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
