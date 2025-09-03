@@ -237,8 +237,11 @@ function Home() {
       })
       .catch(
         (error) => {
-          alert("Camera and microphone access is required to use the app.");
+          console.log(error)
+          alert("Camera and microphone access is required to use the app.",error);
+          console.log(error)
           navigate("/")
+          console.log(error)
         },
 
       )
@@ -390,16 +393,16 @@ function Home() {
         <div className="online-section">
           <button className="online-count-btn" onClick={toggleOnlineUsers}>
             <span className="online-indicator">●</span>
-            <span>{onlineUsers.length} online</span>
+            <span>{otherusers.length} online</span>
           </button>
 
           {showOnlineUsers && (
             <div className="online-dropdown">
               <div className="dropdown-header">
-                Online Users ({onlineUsers.length})
+                Online Users ({otherusers.length})
               </div>
               <div className="online-users-list">
-                {onlineUsers.map((client) => (
+                {otherusers.map((client) => (
                   <div key={client.id} className="online-user-item">
                     <span className="user-online-indicator">●</span>
                     <span className="username">{client.username}</span>
