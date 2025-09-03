@@ -429,6 +429,7 @@ function Home() {
           )} 
         </div>
       </div>}
+      {!videoCall &&
 
       <div className="messages-container">
         <ScrollToBottom className="messages">
@@ -441,8 +442,8 @@ function Home() {
           )}
         </ScrollToBottom>
         {typeMsg && <div className="typing-indicator">{typeMsg}</div>}
-      </div>
-
+      </div>}
+      {!videoCall &&
       <div className="footer">
         <form className="messageForm" onSubmit={handleSubmit}>
           <input
@@ -455,7 +456,7 @@ function Home() {
           />
           <button type="submit">send</button>
         </form>
-      </div>
+      </div>}
 
       {videoCall && (
         <div className="App">
