@@ -95,10 +95,7 @@ function Home() {
       navigate("/")
       return;
     }
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then((stream) => {
-        localVideo.current.srcObject = stream
-        localStream.current = stream
+    
         socket.current = io("https://video-chat-9zhu.onrender.com/");
         socket.current.on('connect', () => {
           setCurrUserId(socket.current.id);
@@ -234,17 +231,8 @@ function Home() {
 
 
         }
-      })
-      .catch(
-        (error) => {
-          console.log(error)
-          alert("Camera and microphone access is required to use the app.",error);
-          console.log(error)
-          navigate("/")
-          console.log(error)
-        },
-
-      )
+      
+      
 
 
 
@@ -268,6 +256,20 @@ function Home() {
   }
 
   const createOffer = async ({ targetUser, user }) => {
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then((stream) => {
+        localVideo.current.srcObject = stream
+        localStream.current = stream})
+        .catch(
+          (error) => {
+            console.log(error)
+            alert("Camera and microphone access is required to use the app.",error);
+            console.log(error)
+            navigate("/")
+            console.log(error)
+          },
+  
+        )
     setVideoCall(true)
     setTarget(user)
 
