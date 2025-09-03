@@ -237,6 +237,7 @@ function Home() {
       })
       .catch(
         (error) => {
+          console.log(error)
           alert("Camera and microphone access is required to use the app.");
           navigate("/")
         },
