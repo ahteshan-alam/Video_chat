@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import './home.css';
 import { io } from 'socket.io-client';
 import ScrollToBottom from 'react-scroll-to-bottom';
-import Message from './Message'; // Assuming Message component is defined elsewhere
+import Message from '../message/message';// Assuming Message component is defined elsewhere
 
 const configuration = {
   iceServers: [
