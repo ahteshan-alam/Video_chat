@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "react-scroll-to-bottom": "^4.2.0",
     "uuid": "^11.1.0"
   }
 }
