@@ -490,35 +490,7 @@ function Home() {
                 )}
               </div>
             </section>
-            <aside className="sidebar">
-              <div className="list">
-                <div className="list-header">
-                  <p>Online Users ({otherusers.length})</p>
-                </div>
-                <div className="list-content">
-                  <ul>
-                    {otherusers.length > 0 ? (
-                      otherusers.map((user) => (
-                        <li key={user.id} className="user-item">
-                          <span className="user-info">
-                            <span className="online-indicator"></span>
-                            <span className="username">{user.username}</span>
-                          </span>
-                          <button
-                            className="call-btn"
-                            onClick={() => createOffer({ targetUser: user.id, user })}
-                          >
-                            call
-                          </button>
-                        </li>
-                      ))
-                    ) : (
-                      <li className="no-users">no users online</li>
-                    )}
-                  </ul>
-                </div>
-              </div>
-            </aside>
+            
           </main>
 
           {incomingcall && (
