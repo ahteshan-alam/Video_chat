@@ -32,8 +32,8 @@ function Home() {
   const [isCalling, setIsCalling] = useState(false);
   const [userBusy, setUserBusy] = useState(false);
   const [answer, setAnswer] = useState(null);
-  const [mute, setMute] = useState(false);
-  const [pause, setPause] = useState(false);
+  const [mute, setMute] = useState(true);
+  const [pause, setPause] = useState(true);
   const [target, setTarget] = useState(null);
   const [inCall, setInCall] = useState(false);
   const [callDeclined, setCallDeclined] = useState(false);
