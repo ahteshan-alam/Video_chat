@@ -150,7 +150,7 @@ function Home() {
           }
         }
       };
-
+      
       await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
       while (candidatesQueue.current.length) {
         const candidate = candidatesQueue.current.shift();
@@ -194,7 +194,7 @@ function Home() {
     });
 
     socket.current.on('call_cancel', () => {
-
+      
       resetCall();
       setVideoCall(false)
     });
@@ -364,7 +364,7 @@ function Home() {
     setIncomingcall(false);
     setIsCalling(false);
     setAnswer(null);
-
+    
     setTarget(null);
   };
 
@@ -423,270 +423,173 @@ function Home() {
                       <span className="user-online-indicator">●</span>
                       <span className="username">{client.username}</span>
                     </div>
-                    <button className="callbtn" onClick={() => createOffer({ targetUser: client.id, user: client })}>
+                    <button className="callbtn" onClick={() => createOffer({ targetUser: client.id, user:client })}>
                       <i className="fa-solid fa-video"></i>
                     </button>
                   </div>
                 ))}
               </div>
             </div>
-          )}
+          )} 
         </div>
       </div>}
       {!videoCall &&
 
-        <div className="messages-container">
-          <ScrollToBottom className="messages">
-            {messages.map((item) =>
-              item.type === 'notification' ? (
-                <h2 key={item.id} className="notification">{item.message}</h2>
-              ) : (
-                <Message key={item.id} data={item} currUserId={currUserId} />
-              ),
-            )}
-          </ScrollToBottom>
-          {typeMsg && <div className="typing-indicator">{typeMsg}</div>}
-        </div>}
+      <div className="messages-container">
+        <ScrollToBottom className="messages">
+          {messages.map((item) =>
+            item.type === 'notification' ? (
+              <h2 key={item.id} className="notification">{item.message}</h2>
+            ) : (
+              <Message key={item.id} data={item} currUserId={currUserId} />
+            ),
+          )}
+        </ScrollToBottom>
+        {typeMsg && <div className="typing-indicator">{typeMsg}</div>}
+      </div>}
       {!videoCall &&
-        <div className="footer">
-          <form className="messageForm" onSubmit={handleSubmit}>
-            <input
-              type="text"
-              className="message"
-              value={message}
-              onChange={handleChange}
-              required
-              placeholder="Type a message..."
-            />
-            <button type="submit">send</button>
-          </form>
-        </div>}
+      <div className="footer">
+        <form className="messageForm" onSubmit={handleSubmit}>
+          <input
+            type="text"
+            className="message"
+            value={message}
+            onChange={handleChange}
+            required
+            placeholder="Type a message..."
+          />
+          <button type="submit">send</button>
+        </form>
+      </div>}
 
       {videoCall && (
-        <div className="video-call-app">
-          <div className="cyber-grid"></div>
-          <div className="cyber-overlay"></div>
-
+        <div className="App">
           <header className="app-header">
-            <div className="header-content">
-              <div className="logo-section">
-                <div className="cyber-logo">
-                  <span className="logo-icon">◉</span>
-                  <h1 className="app-title">NEXUS CALL</h1>
-                </div>
-                <div className="user-badge">
-                  <span className="user-indicator"></span>
-                  <span className="username">{currentUser.username}</span>
-                </div>
-              </div>
-              <div className="connection-status">
-                <div className="status-dot"></div>
-                <span>CONNECTED</span>
-              </div>
-            </div>
+            <h1>My Video Call App {currentUser.username}</h1>
           </header>
-
           <main className="main-content">
-            <section className="video-arena">
-              <div className="video-grid">
-                <div className="video-container local-video">
-                  <div className="video-frame">
-                    <video ref={localVideo} autoPlay playsInline muted></video>
-                    <div className="video-overlay">
-                      <div className="scan-line"></div>
-                      <div className="corner-brackets">
-                        <span className="bracket top-left"></span>
-                        <span className="bracket top-right"></span>
-                        <span className="bracket bottom-left"></span>
-                        <span className="bracket bottom-right"></span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="video-label">
-                    <span className="label-text">LOCAL_FEED</span>
-                    <div className="signal-bars">
-                      <span></span><span></span><span></span>
-                    </div>
-                  </div>
+            <section className="video-section">
+              <div className="video">
+                <div className="local-video-container">
+                  <video ref={localVideo} autoPlay playsInline muted></video>
+                  <div className="video-label">You</div>
                 </div>
-
-                <div className="video-container remote-video">
-                  <div className="video-frame">
-                    <video ref={remoteVideo} autoPlay playsInline></video>
-                    <div className="video-overlay">
-                      <div className="scan-line"></div>
-                      <div className="corner-brackets">
-                        <span className="bracket top-left"></span>
-                        <span className="bracket top-right"></span>
-                        <span className="bracket bottom-left"></span>
-                        <span className="bracket bottom-right"></span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="video-label">
-                    <span className="label-text">REMOTE_FEED</span>
-                    <div className="signal-bars">
-                      <span></span><span></span><span></span>
-                    </div>
-                  </div>
+                <div className="remote-video-container">
+                  <video ref={remoteVideo} autoPlay playsInline></video>
+                  <div className="video-label">Remote</div>
                 </div>
               </div>
-
-              <div className="control-panel">
-                <div className="control-group">
-                  <button className={`cyber-btn audio-btn ${mute ? 'muted' : ''}`} onClick={handleAudio}>
-                    <span className="btn-icon">{mute ? '🔇' : '🎤'}</span>
-                    <span className="btn-text">{mute ? 'UNMUTE' : 'MUTE'}</span>
-                    <div className="btn-glow"></div>
+              <div className="video-controls">
+                <button className="muteBtn" onClick={handleAudio}>
+                  {mute ? '🔇 Unmute' : '🎤 Mute'}
+                </button>
+                <button className="muteBtn" onClick={handleVideo}>
+                  {pause ? '📹 Resume' : '📹 Pause'}
+                </button>
+                {inCall && (
+                  <button className="muteBtn end-call-btn" onClick={handleEnd}>
+                    ❌ End
                   </button>
-
-                  <button className={`cyber-btn video-btn ${pause ? 'paused' : ''}`} onClick={handleVideo}>
-                    <span className="btn-icon">📹</span>
-                    <span className="btn-text">{pause ? 'RESUME' : 'PAUSE'}</span>
-                    <div className="btn-glow"></div>
-                  </button>
-
-                  {inCall && (
-                    <button className="cyber-btn end-btn" onClick={handleEnd}>
-                      <span className="btn-icon">❌</span>
-                      <span className="btn-text">END_CALL</span>
-                      <div className="btn-glow"></div>
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
             </section>
           </main>
 
-          {/* Incoming Call Modal */}
           {incomingcall && (
-            <div className="modal-overlay">
-              <div className="modal-container incoming-call-modal">
-                <div className="modal-header">
-                  <div className="pulse-ring">
-                    <span className="call-icon">📞</span>
-                  </div>
-                  <h3 className="modal-title">INCOMING_TRANSMISSION</h3>
-                </div>
-                <div className="modal-body">
-                  <p className="caller-info">
-                    CALLER: <span className="caller-name">{answer?.caller.username}</span>
-                  </p>
-                  <div className="connection-visual">
-                    <div className="data-stream"></div>
-                  </div>
-                </div>
-                <div className="modal-actions">
-                  <button className="cyber-btn accept-btn" onClick={() => sendAnswer(answer)}>
-                    <span className="btn-text">ACCEPT</span>
-                    <div className="btn-glow"></div>
+            <div className="popup-overlay">
+              <div className="popup incoming-call">
+                <div className="popup-icon">📞</div>
+                <h3>Incoming Call</h3>
+                <p>
+                  Call from <span className="caller-name">{answer?.caller.username}</span>
+                </p>
+                <div className="popup-actions">
+                  <button className="accept-btn" onClick={() => sendAnswer(answer)}>
+                    Accept
                   </button>
-                  <button className="cyber-btn reject-btn" onClick={handleRejectCall}>
-                    <span className="btn-text">REJECT</span>
-                    <div className="btn-glow"></div>
+                  <button className="reject-btn" onClick={handleRejectCall}>
+                    Reject
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Calling Modal */}
           {isCalling && (
-            <div className="modal-overlay">
-              <div className="modal-container calling-modal">
-                <div className="modal-header">
-                  <div className="loading-ring">
-                    <div className="spinner"></div>
-                  </div>
-                  <h3 className="modal-title">ESTABLISHING_CONNECTION</h3>
-                </div>
-                <div className="modal-body">
-                  <p className="target-info">
-                    TARGET: <span className="target-name">{target?.username}</span>
-                  </p>
-                  <div className="connection-bars">
-                    <span></span><span></span><span></span><span></span>
-                  </div>
-                </div>
-                <div className="modal-actions">
-                  <button className="cyber-btn cancel-btn" onClick={handleCancelCall}>
-                    <span className="btn-text">ABORT</span>
-                    <div className="btn-glow"></div>
+            <div className="popup-overlay">
+              <div className="popup calling">
+                <div className="calling-spinner"></div>
+                <h3>Calling...</h3>
+                <p>
+                  Calling <span className="target-name">{target?.username}</span>
+                </p>
+                <div className="popup-actions">
+                  <button className="cancel-btn" onClick={handleCancelCall}>
+                    cancel
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* User Busy Modal */}
           {userBusy && (
-            <div className="modal-overlay">
-              <div className="modal-container error-modal">
-                <div className="modal-header">
-                  <div className="error-icon">📵</div>
-                  <h3 className="modal-title">CONNECTION_BLOCKED</h3>
-                </div>
-                <div className="modal-body">
-                  <p className="error-message">TARGET_BUSY_IN_ANOTHER_CALL</p>
-                </div>
-                <div className="modal-actions">
-                  <button className="cyber-btn ok-btn" onClick={() => {
-                    setUserBusy(false);
-                    setVideoCall(false);
-                  }}>
-                    <span className="btn-text">ACKNOWLEDGED</span>
-                    <div className="btn-glow"></div>
+            <div className="popup-overlay">
+              <div className="popup user-busy">
+                <div className="popup-icon">📵</div>
+                <h3>User Busy</h3>
+                <p>user busy in another call</p>
+                <div className="popup-actions">
+                  <button
+                    className="ok-btn"
+                    onClick={() => {
+                      setUserBusy(false);
+                      setVideoCall(false);
+                    }}
+                  >
+                    ok
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Call Declined Modal */}
           {callDeclined && (
-            <div className="modal-overlay">
-              <div className="modal-container error-modal">
-                <div className="modal-header">
-                  <div className="error-icon">❌</div>
-                  <h3 className="modal-title">TRANSMISSION_DENIED</h3>
-                </div>
-                <div className="modal-body">
-                  <p className="error-message">
-                    {target?.username || 'TARGET'} REJECTED_CONNECTION
-                  </p>
-                </div>
-                <div className="modal-actions">
-                  <button className="cyber-btn ok-btn" onClick={() => {
-                    setCallDeclined(false);
-                    setTarget(null);
-                    setVideoCall(false);
-                  }}>
-                    <span className="btn-text">ACKNOWLEDGED</span>
-                    <div className="btn-glow"></div>
+            <div className="popup-overlay">
+              <div className="popup call-rejected">
+                <div className="popup-icon">❌</div>
+                <h3>Call Declined</h3>
+                <p>{target?.username || 'The user'} declined your call</p>
+                <div className="popup-actions">
+                  <button
+                    className="ok-btn"
+                    onClick={() => {
+                      setCallDeclined(false);
+                      setTarget(null);
+                      setVideoCall(false);
+                    }}
+                  >
+                    ok
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Call Ended Modal */}
           {callEnded && (
-            <div className="modal-overlay">
-              <div className="modal-container info-modal">
-                <div className="modal-header">
-                  <div className="info-icon">📴</div>
-                  <h3 className="modal-title">CONNECTION_TERMINATED</h3>
-                </div>
-                <div className="modal-body">
-                  <p className="info-message">TRANSMISSION_ENDED</p>
-                </div>
-                <div className="modal-actions">
-                  <button className="cyber-btn ok-btn" onClick={() => {
-                    setCallEnded(false);
-                    setVideoCall(false);
-                  }}>
-                    <span className="btn-text">ACKNOWLEDGED</span>
-                    <div className="btn-glow"></div>
+            <div className="popup-overlay">
+              <div className="popup call-ended">
+                <div className="popup-icon">📴</div>
+                <h3>Call Ended</h3>
+                <p>call ended</p>
+                <div className="popup-actions">
+                  <button
+                    className="ok-btn"
+                    onClick={() => {
+                      setCallEnded(false);
+                      setVideoCall(false);
+                    }}
+                  >
+                    ok
                   </button>
                 </div>
               </div>
