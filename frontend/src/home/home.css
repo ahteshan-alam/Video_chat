@@ -2850,7 +2850,7 @@ body::before {
 
 
 /* grok */
-```css
+
 /* Reset default styles */
 * {
   margin: 0;
@@ -3279,4 +3279,3 @@ body::before {
     font-size: 0.8rem;
   }
 }
-```
