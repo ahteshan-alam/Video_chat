@@ -382,6 +382,7 @@ function Home() {
     resetCall();
     socket.current.emit('call_ended', { target: currentUser.partner, currentUser: currentUser.id });
     console.log('you are ending the call');
+    setCallEnded(true)
   };
 
   if (isLoading) {
