@@ -490,7 +490,6 @@ function Home() {
                 )}
               </div>
             </section>
-            
           </main>
 
           {incomingcall && (
