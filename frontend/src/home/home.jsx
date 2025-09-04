@@ -499,10 +499,10 @@ function Home() {
         <span className="caller-name">{answer?.caller.username}</span> is calling...
       </p>
       <div className="popup-actions">
-        <button className="accept-btn">
+        <button className="accept-btn" onClick={() => sendAnswer(answer)}>
           <i className="fa-solid fa-phone"></i> Accept
         </button>
-        <button className="reject-btn">
+        <button className="reject-btn" onClick={handleRejectCall}>
           <i className="fa-solid fa-phone-slash"></i> Reject
         </button>
       </div>
