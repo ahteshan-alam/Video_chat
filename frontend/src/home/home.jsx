@@ -407,10 +407,11 @@ function Home() {
       {!videoCall && <div className="header">
         <h1>ChatterBox</h1>
         <div className="online-section">
-          <button className="online-count-btn" onClick={toggleOnlineUsers}>
+        <button className="online-count-btn" onClick={toggleOnlineUsers}>
             <span className="online-indicator">●</span>
-            <span>{otherusers.length} online</span>
+            <span>{onlineUsers.length} online</span>
           </button>
+         
           {showOnlineUsers && (
             <div className="online-dropdown">
               <div className="dropdown-header">

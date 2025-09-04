@@ -1,593 +1,3 @@
-/* Modern CSS for Improved Structure */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: 'Inter', sans-serif;
-  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
-  min-height: 100vh;
-  color: #ffffff;
-  overflow-x: hidden;
-}
-
-/* Main App Container */
-.App {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 20px;
-  gap: 20px;
-}
-
-/* Header */
-.app-header {
-  text-align: center;
-  margin-bottom: 10px;
-}
-
-.app-header h1 {
-  font-size: clamp(1.8rem, 4vw, 3rem);
-  font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.02em;
-}
-
-/* Main Content Layout */
-.main-content {
-  display: grid;
-  grid-template-columns: 1fr 350px;
-  gap: 30px;
-  flex: 1;
-  min-height: 0;
-}
-
-/* Video Section */
-.video-section {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.video {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  flex: 1;
-  min-height: 450px;
-}
-
-/* Video Containers */
-.local-video-container,
-.remote-video-container {
-  position: relative;
-  background: #1a1a24;
-  border-radius: 20px;
-  overflow: hidden;
-  border: 2px solid rgba(102, 126, 234, 0.3);
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.local-video-container:hover,
-.remote-video-container:hover {
-  border-color: rgba(102, 126, 234, 0.6);
-  transform: translateY(-5px);
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
-}
-
-.local-video-container video,
-.remote-video-container video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-/* Video Labels */
-.video-label {
-  position: absolute;
-  top: 15px;
-  left: 15px;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(10px);
-  color: white;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.remote-video-container .video-label {
-  background: rgba(102, 126, 234, 0.8);
-  left: auto;
-  right: 15px;
-}
-
-/* Video Controls */
-.video-controls {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  padding: 20px 0;
-  flex-wrap: wrap;
-}
-
-.muteBtn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 14px 28px;
-  border-radius: 50px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  text-transform: capitalize;
-  letter-spacing: 0.5px;
-  min-width: 100px;
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-  position: relative;
-  overflow: hidden;
-}
-
-.muteBtn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.6);
-}
-
-.end-call-btn {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%) !important;
-  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4) !important;
-}
-
-.end-call-btn:hover {
-  box-shadow: 0 12px 35px rgba(255, 107, 107, 0.6) !important;
-}
-
-/* Sidebar */
-.sidebar {
-  display: flex;
-  flex-direction: column;
-}
-
-.list {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  overflow: hidden;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-}
-
-.list-header {
-  background: rgba(255, 255, 255, 0.08);
-  padding: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.list-header p {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-  text-align: center;
-}
-
-.list-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 15px;
-}
-
-.list ul {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.user-item {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-}
-
-.user-item:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(102, 126, 234, 0.4);
-  transform: translateX(5px);
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-}
-
-.online-indicator {
-  width: 8px;
-  height: 8px;
-  background: #00ff88;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-.username {
-  font-weight: 500;
-  color: #ffffff;
-}
-
-.call-btn {
-  background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
-  color: white;
-  border: none;
-  padding: 8px 20px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  text-transform: capitalize;
-  min-width: 70px;
-}
-
-.call-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(78, 205, 196, 0.4);
-}
-
-.no-users {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.5);
-  font-style: italic;
-  padding: 40px 20px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
-  border: 1px dashed rgba(255, 255, 255, 0.1);
-}
-
-/* Popup Overlay */
-.popup-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.3s ease;
-}
-
-/* Popup Container */
-.popup {
-  background: rgba(26, 26, 46, 0.95);
-  backdrop-filter: blur(25px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 25px;
-  padding: 40px;
-  text-align: center;
-  max-width: 420px;
-  width: 90vw;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
-  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.popup-icon {
-  font-size: 3rem;
-  margin-bottom: 20px;
-  display: block;
-}
-
-.popup h3 {
-  font-size: 24px;
-  font-weight: 700;
-  margin-bottom: 15px;
-  color: #ffffff;
-}
-
-.popup p {
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 30px;
-  line-height: 1.5;
-}
-
-.caller-name,
-.target-name {
-  color: #667eea;
-  font-weight: 600;
-}
-
-.popup-actions {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-/* Popup Buttons */
-.accept-btn,
-.reject-btn,
-.cancel-btn,
-.ok-btn,
-.retry-btn {
-  padding: 12px 30px;
-  border: none;
-  border-radius: 50px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  text-transform: capitalize;
-  min-width: 120px;
-}
-
-.accept-btn,
-.retry-btn {
-  background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
-  color: white;
-  box-shadow: 0 8px 25px rgba(0, 255, 136, 0.4);
-}
-
-.accept-btn:hover,
-.retry-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 35px rgba(0, 255, 136, 0.6);
-}
-
-.reject-btn,
-.cancel-btn {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
-  color: white;
-  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
-}
-
-.reject-btn:hover,
-.cancel-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 35px rgba(255, 107, 107, 0.6);
-}
-
-.ok-btn {
-  background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
-  color: white;
-  box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
-}
-
-.ok-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 35px rgba(108, 117, 125, 0.6);
-}
-
-/* Calling Spinner */
-.calling-spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid rgba(102, 126, 234, 0.3);
-  border-top: 4px solid #667eea;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 20px;
-}
-
-/* Responsive Design */
-@media (max-width: 1200px) {
-  .main-content {
-    grid-template-columns: 1fr 300px;
-  }
-}
-
-@media (max-width: 1024px) {
-  .main-content {
-    grid-template-columns: 1fr;
-    gap: 25px;
-  }
-  
-  .sidebar {
-    order: -1;
-  }
-  
-  .list {
-    max-height: 300px;
-  }
-}
-
-@media (max-width: 768px) {
-  .App {
-    padding: 15px;
-  }
-  
-  .video {
-    grid-template-columns: 1fr;
-    gap: 15px;
-    min-height: 350px;
-  }
-  
-  .video-controls {
-    gap: 10px;
-  }
-  
-  .muteBtn {
-    padding: 12px 20px;
-    font-size: 13px;
-    min-width: 90px;
-  }
-  
-  .user-item {
-    flex-direction: column;
-    gap: 12px;
-  }
-  
-  .call-btn {
-    width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  .popup {
-    padding: 30px 20px;
-  }
-  
-  .popup-actions {
-    flex-direction: column;
-  }
-  
-  .accept-btn,
-  .reject-btn,
-  .cancel-btn,
-  .ok-btn,
-  .retry-btn {
-    width: 100%;
-  }
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px) scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-/* Custom Scrollbar */
-.list-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.list-content::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.list-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-}
-
-.list-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-/* Add this CSS to your existing styles in home.css */
-@media (max-width: 480px) {
-  .App {
-    /* Reduce overall app padding for a more edge-to-edge feel */
-    padding: 10px;
-  }
-
-  .app-header h1 {
-    /* Make the main title slightly smaller on very narrow screens */
-    font-size: 1.7rem;
-  }
-
-  .video {
-    /* Adjust video container height for a better fit in portrait mode */
-    min-height: 300px;
-  }
-  
-  .local-video-container,
-  .remote-video-container {
-    /* Make the corners and borders a bit subtler */
-    border-radius: 15px;
-  }
-
-  .video-label {
-    /* Decrease font size and padding for the "You" and "Remote" labels */
-    font-size: 11px;
-    padding: 6px 12px;
-    top: 10px;
-    left: 10px;
-    border-radius: 15px;
-  }
-  
-  .remote-video-container .video-label {
-    /* Ensure the remote label stays on the right */
-    right: 10px;
-    left: auto;
-  }
-
-  .list-header p {
-    /* Smaller text for the "Online Users" header */
-    font-size: 16px;
-  }
-
-  /* --- Popup Adjustments --- */
-  .popup {
-    /* Reduce padding to give content more space */
-    padding: 30px 20px;
-    border-radius: 20px;
-  }
-
-  .popup h3 {
-    /* Smaller title font size in popups */
-    font-size: 20px;
-  }
-
-  .popup p {
-    /* Smaller paragraph font size in popups */
-    font-size: 14px;
-  }
-
-  .popup-actions {
-    /* Stack the action buttons vertically for easy tapping */
-    flex-direction: column;
-    width: 100%;
-    align-items: center;
-  }
-
-  .accept-btn,
-  .reject-btn,
-  .cancel-btn,
-  .ok-btn,
-  .retry-btn {
-    /* Make all popup buttons full-width for a consistent look */
-    width: 100%;
-    max-width: 250px; /* Optional: prevent buttons from being excessively wide */
-    font-size: 14px;
-  }
-}
 /* === Global === */
 * {
   margin: 0;
@@ -2751,8 +2161,9 @@ body::before {
     height: 60px;
   }
 }
- /* Update .online-user-item to use flexbox */
- .online-user-item {
+
+/* Update .online-user-item to use flexbox */
+.online-user-item {
   display: flex;
   align-items: center;
   justify-content: space-between; /* This is the key change */
@@ -2761,15 +2172,15 @@ body::before {
   transition: all 0.2s ease;
   position: relative;
   border-left: 2px solid transparent;
- }
- .user-info {
+  }
+  .user-info {
   display: flex;
   align-items: center;
   gap: 0.75rem;
- }
- 
- /* === Call Button Styling === */
- .callbtn {
+  }
+  
+  /* === Call Button Styling === */
+  .callbtn {
   background: none;
   border: none;
   color: var(--text-secondary);
@@ -2779,73 +2190,73 @@ body::before {
   margin-right: -0.5rem; /* Pull it slightly to the right */
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   flex-shrink: 0; /* Prevent the button from shrinking on smaller screens */
- }
- 
- .callbtn:hover {
+  }
+  
+  .callbtn:hover {
   color: var(--accent-blue);
   transform: scale(1.2) rotate(10deg);
   text-shadow: 0 0 10px rgba(0, 128, 255, 0.6);
- }
- 
- /* === Media Queries for Call Button === */
- @media screen and (max-width: 768px) {
-  .callbtn {
-   font-size: 1rem;
-   padding: 0.4rem;
   }
- }
- @media screen and (max-width: 480px) {
+  
+  /* === Media Queries for Call Button === */
+  @media screen and (max-width: 768px) {
   .callbtn {
-   font-size: 0.9rem;
-   padding: 0.3rem;
+  font-size: 1rem;
+  padding: 0.4rem;
   }
- }
- /* Update the call button styling */
+  }
+  @media screen and (max-width: 480px) {
+  .callbtn {
+  font-size: 0.9rem;
+  padding: 0.3rem;
+  }
+  }
+
+
+/* Update the call button styling */
 .callbtn {
- background: none;
- border: none;
- color: var(--text-secondary); /* Initial color for the icon */
- cursor: pointer;
- font-size: 1.1em; /* Use em for better scaling */
- padding: 0.5em; /* Use em for padding */
- margin-right: -0.5em;
- transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
- flex-shrink: 0;
- 
- /* New styling for a more integrated look */
- display: inline-flex; /* Use flex to center the icon */
- align-items: center;
- justify-content: center;
- width: 2.2em;
- height: 2.2em;
- border-radius: 50%; /* Make it a circle */
- border: 1px solid transparent; /* A transparent border for the hover effect */
+  background: none;
+  border: none;
+  color: var(--text-secondary); /* Initial color for the icon */
+  cursor: pointer;
+  font-size: 1.1em; /* Use em for better scaling */
+  padding: 0.5em; /* Use em for padding */
+  margin-right: -0.5em;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  flex-shrink: 0;
+  
+  /* New styling for a more integrated look */
+  display: inline-flex; /* Use flex to center the icon */
+  align-items: center;
+  justify-content: center;
+  width: 2.2em;
+  height: 2.2em;
+  border-radius: 50%; /* Make it a circle */
+  border: 1px solid transparent; /* A transparent border for the hover effect */
 }
 
 /* Hover effect for the call button */
 .callbtn:hover {
- color: var(--accent-green); /* Change icon color on hover */
- transform: scale(1.2); /* A more pronounced scale up */
- background: rgba(0, 255, 157, 0.1); /* Soft background on hover */
- border-color: var(--border-accent); /* Accent border color */
- box-shadow: 0 0 10px rgba(0, 255, 157, 0.5); /* Glowing effect */
+  color: var(--accent-green); /* Change icon color on hover */
+  transform: scale(1.2); /* A more pronounced scale up */
+  background: rgba(0, 255, 157, 0.1); /* Soft background on hover */
+  border-color: var(--border-accent); /* Accent border color */
+  box-shadow: 0 0 10px rgba(0, 255, 157, 0.5); /* Glowing effect */
 }
 
 /* Mobile Responsiveness for the call button */
 @media screen and (max-width: 768px) {
- .callbtn {
-     font-size: 1em;
-     width: 2em;
-     height: 2em;
- }
+  .callbtn {
+      font-size: 1em;
+      width: 2em;
+      height: 2em;
+  }
 }
 
 @media screen and (max-width: 480px) {
- .callbtn {
-     font-size: 0.9em;
-     width: 1.8em;
-     height: 1.8em;
- }
+  .callbtn {
+      font-size: 0.9em;
+      width: 1.8em;
+      height: 1.8em;
+  }
 }
-
-
