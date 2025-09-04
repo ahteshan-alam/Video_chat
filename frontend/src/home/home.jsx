@@ -464,27 +464,7 @@ function Home() {
 
       {videoCall && (
     <div className="video-call-wrapper">
-      <header className="video-call-header">
-        {/* --- Left Side --- */}
-        <div className="header-left">
-          <button className="icon-btn back-btn" aria-label="Go back">
-            <i className="fa-solid fa-chevron-left"></i>
-          </button>
-          <h1>Video Call with {target?.username || answer?.caller.username || '...'}</h1>
-        </div>
-
-        {/* --- Right Side --- */}
-        <div className="header-right">
-          {/* Note: Call timer needs state management to be functional */}
-          <span className="call-timer">10:34</span>
-          <button className="icon-btn" aria-label="Add participant">
-            <i className="fa-solid fa-user-plus"></i>
-          </button>
-          <button className="icon-btn" aria-label="View options">
-            <i className="fa-solid fa-grip"></i>
-          </button>
-        </div>
-      </header>
+      
 
       {/* Main video display section */}
       <div className="video-container">
