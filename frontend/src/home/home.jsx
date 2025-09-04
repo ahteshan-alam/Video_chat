@@ -464,24 +464,18 @@ function Home() {
 
       {videoCall && (
     <div className="video-call-wrapper">
-      
-
-      {/* Main video display section */}
       <div className="video-container">
-        {/* Remote user's video (background) */}
         <div className="remote-video-view">
           <video ref={remoteVideo} autoPlay playsInline></video>
           <div className="video-label">{target?.username || answer?.caller.username}</div>
         </div>
 
-        {/* Local user's video (picture-in-picture) */}
         <div className="local-video-view">
           <video ref={localVideo} autoPlay playsInline muted></video>
           <div className="video-label">You</div>
         </div>
       </div>
 
-      {/* Video controls overlaid on the video */}
       <div className="video-controls">
         <button className="control-btn" onClick={handleAudio}>
           {mute ? <i className="fa-solid fa-microphone-slash"></i> : <i className="fa-solid fa-microphone"></i>}
@@ -496,7 +490,6 @@ function Home() {
         )}
       </div>
 
-      {/* --- POPUPS --- */}
       {incomingcall && (
         <div className="popup-overlay">
           <div className="popup incoming-call">

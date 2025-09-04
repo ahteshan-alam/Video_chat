@@ -2294,59 +2294,6 @@ body::before {
   background-size: 40px 40px;
 }
 
-/* --- STYLES FOR THE TOP HEADER BAR --- */
-.video-call-header {
-  padding: 1rem 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: relative;
-  z-index: 30;
-  flex-shrink: 0;
-  /* Add a subtle gradient to make it feel integrated */
-  background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
-}
-.header-left,
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-.video-call-header h1 {
-  font-size: 1.1rem;
-  font-weight: 500;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.icon-btn {
-  background-color: transparent;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 1rem;
-  padding: 0.5rem;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease-in-out;
-}
-.icon-btn:hover {
-  background-color: var(--background-light);
-  color: var(--text-primary);
-}
-.call-timer {
-  background-color: var(--background-light);
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  font-weight: 500;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-}
-
 /* --- Video Containers --- */
 .video-container {
   position: absolute;
@@ -2491,7 +2438,6 @@ body::before {
 ======================================================
 */
 @media (max-width: 768px) {
-  .video-call-header h1 { font-size: 1rem; }
   .local-video-view {
     width: 120px;
     bottom: 95px;
