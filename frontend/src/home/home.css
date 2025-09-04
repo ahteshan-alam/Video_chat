@@ -2287,14 +2287,14 @@ body::before {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* Subtle background pattern from the image */
+  /* Subtle background pattern */
   background-image:
     linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
-/* --- Header --- */
+/* --- STYLES FOR THE TOP HEADER BAR --- */
 .video-call-header {
   padding: 1rem 1.5rem;
   display: flex;
@@ -2302,19 +2302,49 @@ body::before {
   align-items: center;
   position: relative;
   z-index: 30;
-  flex-shrink: 0; /* Prevents header from shrinking */
+  flex-shrink: 0;
+  /* Add a subtle gradient to make it feel integrated */
+  background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+}
+.header-left,
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 .video-call-header h1 {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 500;
+  margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.header-icons {
-  display: flex;
-  gap: 1rem;
+.icon-btn {
+  background-color: transparent;
+  border: none;
   color: var(--text-secondary);
+  font-size: 1rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease-in-out;
+}
+.icon-btn:hover {
+  background-color: var(--background-light);
+  color: var(--text-primary);
+}
+.call-timer {
+  background-color: var(--background-light);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
 }
 
 /* --- Video Containers --- */
@@ -2327,7 +2357,6 @@ body::before {
   padding: 1rem;
   box-sizing: border-box;
 }
-
 .remote-video-view,
 .local-video-view {
   position: absolute;
@@ -2337,18 +2366,16 @@ body::before {
   border: 2px solid var(--border-color);
   transition: all 0.3s ease;
 }
-
 .remote-video-view {
   width: calc(100% - 2rem);
   height: calc(100% - 2rem);
   top: 1rem;
   left: 1rem;
 }
-
 .local-video-view {
   width: 240px;
-  aspect-ratio: 4 / 3; /* Ensures video proportions are maintained */
-  height: auto; /* Height is determined by aspect-ratio */
+  aspect-ratio: 4 / 3;
+  height: auto;
   bottom: 110px;
   right: 2.5rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
@@ -2357,8 +2384,6 @@ body::before {
 .local-video-view:hover {
   border-color: var(--accent-primary);
 }
-
-/* This is crucial: ensures the video tag respects the container's shape */
 .remote-video-view > video,
 .local-video-view > video {
   width: 100%;
@@ -2366,7 +2391,6 @@ body::before {
   object-fit: cover;
   border-radius: inherit;
 }
-
 .video-label {
   position: absolute;
   bottom: 12px;
@@ -2395,7 +2419,6 @@ body::before {
   border-radius: 18px;
   border: 1px solid var(--border-color);
 }
-
 .control-btn {
   background: transparent;
   color: var(--text-secondary);
@@ -2410,12 +2433,10 @@ body::before {
   align-items: center;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
-
 .control-btn:hover {
   background-color: rgba(255, 255, 255, 0.1);
   color: var(--text-primary);
 }
-
 .end-call-btn {
   background-color: var(--accent-red);
   color: var(--text-primary);
@@ -2457,14 +2478,12 @@ body::before {
 .accept-btn { background-color: var(--accent-primary); color: white; }
 .reject-btn, .cancel-btn { background-color: var(--accent-red); color: white; }
 .ok-btn { background-color: #4A4D5E; color: white; }
-
-/* --- Calling Spinner Animation --- */
 .calling-spinner {
   width: 50px; height: 50px; border: 5px solid var(--background-light);
   border-top-color: var(--accent-primary); border-radius: 50%;
   margin: 0 auto 20px auto; animation: spin 1s linear infinite;
 }
-@keyframes spin { to { transform: rotate(30deg); } }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /*
 ======================================================
@@ -2472,18 +2491,12 @@ body::before {
 ======================================================
 */
 @media (max-width: 768px) {
-  .video-call-header h1 {
-    font-size: 1rem;
-  }
-
-  /* Shrink the picture-in-picture window on mobile */
+  .video-call-header h1 { font-size: 1rem; }
   .local-video-view {
-    width: 120px; /* Significantly smaller */
-    bottom: 95px;  /* Adjust position for new control bar height */
+    width: 120px;
+    bottom: 95px;
     right: 1rem;
   }
-
-  /* Adjust controls for smaller screens */
   .video-controls {
     bottom: 20px;
     padding: 8px;
@@ -2494,14 +2507,7 @@ body::before {
     height: 44px;
     font-size: 1rem;
   }
-  .end-call-btn {
-    font-size: 1.2rem;
-  }
-
-  .popup {
-    padding: 25px;
-  }
-  .popup h3 {
-    font-size: 1.3rem;
-  }
+  .end-call-btn { font-size: 1.2rem; }
+  .popup { padding: 25px; }
+  .popup h3 { font-size: 1.3rem; }
 }

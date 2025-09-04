@@ -465,11 +465,24 @@ function Home() {
       {videoCall && (
     <div className="video-call-wrapper">
       <header className="video-call-header">
-        <h1>Video Call with {target?.username || answer?.caller.username || '...'}</h1>
-        {/* You could add more controls or info here if needed */}
-        <div className="header-icons">
-            <i className="fa-solid fa-grip"></i>
+        {/* --- Left Side --- */}
+        <div className="header-left">
+          <button className="icon-btn back-btn" aria-label="Go back">
+            <i className="fa-solid fa-chevron-left"></i>
+          </button>
+          <h1>Video Call with {target?.username || answer?.caller.username || '...'}</h1>
+        </div>
+
+        {/* --- Right Side --- */}
+        <div className="header-right">
+          {/* Note: Call timer needs state management to be functional */}
+          <span className="call-timer">10:34</span>
+          <button className="icon-btn" aria-label="Add participant">
             <i className="fa-solid fa-user-plus"></i>
+          </button>
+          <button className="icon-btn" aria-label="View options">
+            <i className="fa-solid fa-grip"></i>
+          </button>
         </div>
       </header>
 
@@ -503,8 +516,7 @@ function Home() {
         )}
       </div>
 
-      {/* --- POPUPS --- (Same popup logic as before, will be restyled by new CSS) */}
-
+      {/* --- POPUPS --- */}
       {incomingcall && (
         <div className="popup-overlay">
           <div className="popup incoming-call">
@@ -524,7 +536,6 @@ function Home() {
           </div>
         </div>
       )}
-
       {isCalling && (
         <div className="popup-overlay">
           <div className="popup calling">
@@ -541,7 +552,6 @@ function Home() {
           </div>
         </div>
       )}
-
       {userBusy && (
         <div className="popup-overlay">
           <div className="popup">
@@ -556,7 +566,6 @@ function Home() {
           </div>
         </div>
       )}
-
       {callDeclined && (
         <div className="popup-overlay">
           <div className="popup">
@@ -571,7 +580,6 @@ function Home() {
           </div>
         </div>
       )}
-
       {callEnded && (
         <div className="popup-overlay">
           <div className="popup">
