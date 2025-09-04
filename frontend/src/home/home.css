@@ -2457,3 +2457,68 @@ body::before {
   .popup { padding: 25px; }
   .popup h3 { font-size: 1.3rem; }
 }
+/*
+======================================================
+--- OPTIMIZED: Tablet & Mobile Responsiveness ---
+======================================================
+*/
+
+/* --- Tablet Devices (Up to 1024px) --- */
+@media (max-width: 1024px) {
+  .local-video-view {
+    /* Increased from mobile size for a better tablet view */
+    width: 200px; 
+    right: 1.5rem;
+    bottom: 100px;
+  }
+}
+
+/* --- Mobile Devices (Up to 600px) --- */
+@media (max-width: 600px) {
+  /* Give the main video more screen real estate */
+  .video-container {
+    padding: 0.5rem;
+  }
+  .remote-video-view {
+    width: calc(100% - 1rem);
+    height: calc(100% - 1rem);
+    top: 0.5rem;
+    left: 0.5rem;
+  }
+
+  .local-video-view {
+    /* Increased from the old 120px to 150px as requested */
+    width: 150px; 
+    bottom: 85px; /* Adjust position for smaller controls */
+    right: 1rem;
+  }
+
+  .video-label {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+  }
+
+  .video-controls {
+    bottom: 15px;
+    padding: 8px;
+    gap: 8px;
+  }
+  
+  .control-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1rem;
+  }
+
+  .end-call-btn {
+    font-size: 1.2rem;
+  }
+
+  .popup {
+    padding: 25px;
+  }
+
+  .popup h3 {
+    font-size: 1.3rem;
+  }
+}
