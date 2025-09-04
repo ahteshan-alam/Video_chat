@@ -369,6 +369,7 @@ function Home() {
   const handleCancelCall = () => {
     resetCall();
     socket.current.emit('call_canceled', { caller: socket.current.id, target });
+    setVideoCall(false)
   };
 
   const handleRejectCall = () => {
