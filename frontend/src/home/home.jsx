@@ -423,7 +423,7 @@ function Home() {
 
   return (
     <div className="chatbox">
-      <div className="header">
+      {!videoCall && <div className="header">
         <h1>ChatterBox</h1>
         <div className="online-section">
           <button className="online-count-btn" onClick={toggleOnlineUsers}>
@@ -453,8 +453,8 @@ function Home() {
           )}
         </div>
       </div>
-
-      <div className="messages-container">
+}
+      {!videoCall && <div className="messages-container">
         <ScrollToBottom className="messages">
           {messages.map((item) =>
             item.type === 'notification' ? (
@@ -465,9 +465,9 @@ function Home() {
           )}
         </ScrollToBottom>
         {typeMsg && <div className="typing-indicator">{typeMsg}</div>}
-      </div>
+      </div>}
 
-      <div className="footer">
+      {!videoCall && <div className="footer">
         <form className="messageForm" onSubmit={handleSubmit}>
           <input
             type="text"
@@ -479,7 +479,7 @@ function Home() {
           />
           <button type="submit">send</button>
         </form>
-      </div>
+      </div>}
 
       {videoCall && (
         <div className="App">
