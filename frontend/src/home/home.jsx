@@ -408,7 +408,7 @@ function Home() {
         <h1>ChatterBox</h1>
         <div className="online-section">
           <button className="online-count-btn" onClick={toggleOnlineUsers}>
-            <span className="online-indicator">o</span>
+            <span className="online-indicator">●</span>
             <span>{otherusers.length} online</span>
           </button>
           {showOnlineUsers && (
