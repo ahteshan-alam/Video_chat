@@ -1,10 +1,9 @@
-
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './home.css';
 import { io } from 'socket.io-client';
 import ScrollToBottom from 'react-scroll-to-bottom';
-import Message from '../message/message';
+import Message from '../message/message';// Assuming Message component is defined elsewhere
 
 const configuration = {
   iceServers: [
@@ -42,6 +41,7 @@ function Home() {
   const [videoCall, setVideoCall] = useState(false);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
+  const [showOnlineUsers, setShowOnlineUsers] = useState(false);
   const [currUserId, setCurrUserId] = useState('');
   const [typeMsg, setTypeMsg] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -57,13 +57,16 @@ function Home() {
 
   const handleChange = (e) => {
     setMessage(e.target.value);
+
     if (!isTyping) {
       setIsTyping(true);
       socket.current.emit('typing', { username, room });
     }
+
     if (typingTimeout.current) {
       clearTimeout(typingTimeout.current);
     }
+
     typingTimeout.current = setTimeout(() => {
       setIsTyping(false);
       socket.current.emit('typing', { username: '', room });
@@ -73,12 +76,18 @@ function Home() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setIsTyping(false);
+
     if (typingTimeout.current) {
       clearTimeout(typingTimeout.current);
     }
+
     socket.current.emit('typing', { username: '', room });
     socket.current.emit('message', { message, username });
     setMessage('');
+  };
+
+  const toggleOnlineUsers = () => {
+    setShowOnlineUsers((prev) => !prev);
   };
 
   useEffect(() => {
@@ -119,12 +128,12 @@ function Home() {
     });
 
     socket.current.on('offer', async (payload) => {
-      console.log(`Offer event triggered from ${payload.caller.id} to ${payload.target}`);
+      console.log(`offer received from ${payload.caller.id} to ${payload.target}`);
       if (peerConnection.current || inCall) {
         socket.current.emit('userBusy', { target: payload.caller.id });
         return;
       }
-      setVideoCall(true);
+      setVideoCall(true)
       peerConnection.current = new RTCPeerConnection(configuration);
       peerConnection.current.onicecandidate = (event) => {
         if (event.candidate) {
@@ -141,17 +150,19 @@ function Home() {
           }
         }
       };
+      
       await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
       while (candidatesQueue.current.length) {
         const candidate = candidatesQueue.current.shift();
         await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
       }
       candidatesQueue.current = [];
+      console.log(payload)
       if (payload.sdp) {
         setIncomingcall(true);
-        setAnswer(payload);
-        console.log('Incoming call set, answer:', payload);
       }
+      setAnswer(payload);
+      console.log("sending answer")
     });
 
     socket.current.on('userBusy', ({ message }) => {
@@ -174,37 +185,32 @@ function Home() {
         await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
       }
       candidatesQueue.current = [];
-      console.log('Call accepted');
     });
 
     socket.current.on('call_declined', () => {
-      console.log('Call rejected');
+      console.log('call reject');
       resetCall();
       setCallDeclined(true);
     });
 
     socket.current.on('call_cancel', () => {
       resetCall();
-      console.log('Call cancelled');
     });
 
     socket.current.on('call_ended', () => {
       setCallEnded(true);
       resetCall();
-      console.log('Call ended');
     });
 
     socket.current.on('ice-candidate', async (payload) => {
-      if (payload.route) {
-        candidatesQueue.current.push(payload.route);
-        if (peerConnection.current && peerConnection.current.remoteDescription) {
-          while (candidatesQueue.current.length) {
-            const candidate = candidatesQueue.current.shift();
-            await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
-          }
+      candidatesQueue.current.push(payload.route);
+      if (peerConnection.current && peerConnection.current.remoteDescription) {
+        while (candidatesQueue.current.length) {
+          const candidate = candidatesQueue.current.shift();
+          await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
         }
-        console.log('Received ICE candidate');
       }
+      console.log("recieved ice")
     });
 
     return () => {
@@ -220,37 +226,13 @@ function Home() {
         socket.current.off();
       }
     };
-  }, [formData, navigate]);
+  }, []);
 
   useEffect(() => {
-    const localVideoEl = localVideo.current;
-    const remoteVideoEl = remoteVideo.current;
-
-    const handleCanPlay = (containerClass) => {
-      return () => {
-        const container = document.querySelector(containerClass);
-        if (container) {
-          container.classList.add('video-loaded');
-        }
-      };
-    };
-
-    if (localVideoEl) {
-      localVideoEl.addEventListener('canplay', handleCanPlay('.local-video-container'));
+    if (videoCall && localStream.current && localVideo.current) {
+      localVideo.current.srcObject = localStream.current;
     }
-    if (remoteVideoEl) {
-      remoteVideoEl.addEventListener('canplay', handleCanPlay('.remote-video-container'));
-    }
-
-    return () => {
-      if (localVideoEl) {
-        localVideoEl.removeEventListener('canplay', handleCanPlay('.local-video-container'));
-      }
-      if (remoteVideoEl) {
-        remoteVideoEl.removeEventListener('canplay', handleCanPlay('.remote-video-container'));
-      }
-    };
-  }, []);
+  }, [videoCall]);
 
   const createOffer = async ({ targetUser, user }) => {
     try {
@@ -295,11 +277,14 @@ function Home() {
         target: targetUser,
         caller: { username: currentUser.username, id: socket.current.id },
       });
-      console.log('Sending offer to', targetUser);
+      console.log('sent offer to ', targetUser);
     } catch (error) {
       console.error('Error in createOffer:', error);
       alert('Failed to start call. Camera and microphone access is required.');
-      resetCall();
+      setVideoCall(false);
+      setIsCalling(false);
+      setTarget(null);
+      navigate('/');
     }
   };
 
@@ -325,7 +310,7 @@ function Home() {
     } catch (error) {
       console.error('Error in createAnswer:', error);
       alert('Failed to accept call. Camera and microphone access is required.');
-      resetCall();
+      setIncomingcall(false);
     }
   };
 
@@ -334,7 +319,7 @@ function Home() {
     createAnswer({ payload: answer });
     setIncomingcall(false);
     setInCall(true);
-    console.log('Call accepted');
+    console.log('call accepted');
     setCurrentUser((prev) => ({ ...prev, partner: answer.caller.id }));
   };
 
@@ -396,15 +381,15 @@ function Home() {
   const handleEnd = () => {
     resetCall();
     socket.current.emit('call_ended', { target: currentUser.partner, currentUser: currentUser.id });
-    console.log('You are ending the call');
+    console.log('you are ending the call');
   };
 
   if (isLoading) {
     return (
-      <div className="App">
-        <header className="app-header">
+      <div className="chatbox">
+        <div className="header">
           <h1>ChatterBox</h1>
-        </header>
+        </div>
         <div className="loading-area">
           <h2 className="loading-text">Connecting to ChatterBox...</h2>
           <div className="loader"></div>
@@ -414,78 +399,69 @@ function Home() {
   }
 
   return (
-    <div className="App">
-      {!videoCall && (
-        <div className="no-call">
-          <header className="app-header">
-            <h1>ChatterBox {currentUser.username}</h1>
-          </header>
-          <main className="main-content">
-            <section className="no-call-section">
-              <div className="messages-container">
-                <ScrollToBottom className="messages">
-                  {messages.map((item) =>
-                    item.type === 'notification' ? (
-                      <h2 key={item.id} className="notification">{item.message}</h2>
-                    ) : (
-                      <Message key={item.id} data={item} currUserId={currUserId} />
-                    )
-                  )}
-                </ScrollToBottom>
-                {typeMsg && <div className="typing-indicator">{typeMsg}</div>}
+    <div className="chatbox">
+      {!videoCall && <div className="header">
+        <h1>ChatterBox</h1>
+        <div className="online-section">
+          <button className="online-count-btn" onClick={toggleOnlineUsers}>
+            <span className="online-indicator">●</span>
+            <span>{otherusers.length} online</span>
+          </button>
+          {showOnlineUsers && (
+            <div className="online-dropdown">
+              <div className="dropdown-header">
+                Online Users ({otherusers.length})
               </div>
-              <div className="footer">
-                <form className="messageForm" onSubmit={handleSubmit}>
-                  <input
-                    type="text"
-                    className="message"
-                    value={message}
-                    onChange={handleChange}
-                    required
-                    placeholder="Type a message..."
-                  />
-                  <button type="submit" className="control-btn send-btn">
-                    <i className="fas fa-paper-plane"></i> Send
-                  </button>
-                </form>
+              <div className="online-users-list">
+                {otherusers.map((client) => (
+                  <div key={client.id} className="online-user-item">
+                    <div className="user-info">
+                      <span className="user-online-indicator">●</span>
+                      <span className="username">{client.username}</span>
+                    </div>
+                    <button className="callbtn" onClick={() => createOffer({ targetUser: client.id, user:client })}>
+                      <i className="fa-solid fa-video"></i>
+                    </button>
+                  </div>
+                ))}
               </div>
-            </section>
-            <aside className="sidebar">
-              <div className="list">
-                <div className="list-header">
-                  <p>Online Users ({otherusers.length})</p>
-                </div>
-                <div className="list-content">
-                  <ul>
-                    {otherusers.length > 0 ? (
-                      otherusers.map((user) => (
-                        <li key={user.id} className="user-item">
-                          <span className="user-info">
-                            <span className="online-indicator"></span>
-                            <span className="username">{user.username}</span>
-                          </span>
-                          <button
-                            className="control-btn call-btn"
-                            onClick={() => createOffer({ targetUser: user.id, user })}
-                          >
-                            <i className="fas fa-phone"></i> Call
-                          </button>
-                        </li>
-                      ))
-                    ) : (
-                      <li className="no-users">No users online</li>
-                    )}
-                  </ul>
-                </div>
-              </div>
-            </aside>
-          </main>
+            </div>
+          )} 
         </div>
-      )}
+      </div>}
+      {!videoCall &&
+
+      <div className="messages-container">
+        <ScrollToBottom className="messages">
+          {messages.map((item) =>
+            item.type === 'notification' ? (
+              <h2 key={item.id} className="notification">{item.message}</h2>
+            ) : (
+              <Message key={item.id} data={item} currUserId={currUserId} />
+            ),
+          )}
+        </ScrollToBottom>
+        {typeMsg && <div className="typing-indicator">{typeMsg}</div>}
+      </div>}
+      {!videoCall &&
+      <div className="footer">
+        <form className="messageForm" onSubmit={handleSubmit}>
+          <input
+            type="text"
+            className="message"
+            value={message}
+            onChange={handleChange}
+            required
+            placeholder="Type a message..."
+          />
+          <button type="submit">send</button>
+        </form>
+      </div>}
+
       {videoCall && (
-        <div className="video-call-container">
+        <div className="App">
           <header className="app-header">
-            <h1>ChatterBox {currentUser.username}</h1>
+            <h1>My Video Call App {currentUser.username}</h1>
           </header>
           <main className="main-content">
             <section className="video-section">
@@ -496,35 +472,22 @@ function Home() {
                 </div>
                 <div className="remote-video-container">
                   <video ref={remoteVideo} autoPlay playsInline></video>
-                  <div className="video-label">{target?.username || 'Remote'}</div>
+                  <div className="video-label">Remote</div>
                 </div>
               </div>
               <div className="video-controls">
-                <button className="control-btn mute-btn" onClick={handleAudio}>
-                  {mute ? (
-                    <span className="icon"><i className="fas fa-microphone-slash"></i> Unmute</span>
-                  ) : (
-                    <span className="icon"><i className="fas fa-microphone"></i> Mute</span>
-                  )}
+                <button className="muteBtn" onClick={handleAudio}>
+                  {mute ? '🔇 Unmute' : '🎤 Mute'}
                 </button>
-                <button className="control-btn video-btn" onClick={handleVideo}>
-                  {pause ? (
-                    <span className="icon"><i className="fas fa-video"></i> Resume</span>
-                  ) : (
-                    <span className="icon"><i className="fas fa-video-slash"></i> Pause</span>
-                  )}
+                <button className="muteBtn" onClick={handleVideo}>
+                  {pause ? '📹 Resume' : '📹 Pause'}
                 </button>
                 {inCall && (
-                  <button className="control-btn end-call-btn" onClick={handleEnd}>
-                    <span className="icon"><i className="fas fa-phone-slash"></i> End Call</span>
+                  <button className="muteBtn end-call-btn" onClick={handleEnd}>
+                    ❌ End
                   </button>
                 )}
               </div>
-              {inCall && (
-                <div className="call-status">
-                  <span>Call with {target?.username || 'Remote'}</span>
-                </div>
-              )}
             </section>
             <aside className="sidebar">
               <div className="list">
@@ -541,41 +504,42 @@ function Home() {
                             <span className="username">{user.username}</span>
                           </span>
                           <button
-                            className="control-btn call-btn"
+                            className="call-btn"
                             onClick={() => createOffer({ targetUser: user.id, user })}
-                            disabled={inCall || isCalling}
                           >
-                            <i className="fas fa-phone"></i> Call
+                            call
                           </button>
                         </li>
                       ))
                     ) : (
-                      <li className="no-users">No users online</li>
+                      <li className="no-users">no users online</li>
                     )}
                   </ul>
                 </div>
               </div>
             </aside>
           </main>
+
           {incomingcall && (
             <div className="popup-overlay">
               <div className="popup incoming-call">
-                <div className="popup-icon"><i className="fas fa-phone"></i></div>
+                <div className="popup-icon">📞</div>
                 <h3>Incoming Call</h3>
                 <p>
                   Call from <span className="caller-name">{answer?.caller.username}</span>
                 </p>
                 <div className="popup-actions">
-                  <button className="control-btn accept-btn" onClick={() => sendAnswer(answer)}>
-                    <i className="fas fa-check"></i> Accept
+                  <button className="accept-btn" onClick={() => sendAnswer(answer)}>
+                    Accept
                   </button>
-                  <button className="control-btn reject-btn" onClick={handleRejectCall}>
-                    <i className="fas fa-times"></i> Reject
+                  <button className="reject-btn" onClick={handleRejectCall}>
+                    Reject
                   </button>
                 </div>
               </div>
             </div>
           )}
+
           {isCalling && (
             <div className="popup-overlay">
               <div className="popup calling">
@@ -585,69 +549,72 @@ function Home() {
                   Calling <span className="target-name">{target?.username}</span>
                 </p>
                 <div className="popup-actions">
-                  <button className="control-btn cancel-btn" onClick={handleCancelCall}>
-                    <i className="fas fa-times"></i> Cancel
+                  <button className="cancel-btn" onClick={handleCancelCall}>
+                    cancel
                   </button>
                 </div>
               </div>
             </div>
           )}
+
           {userBusy && (
             <div className="popup-overlay">
               <div className="popup user-busy">
-                <div className="popup-icon"><i className="fas fa-user-slash"></i></div>
+                <div className="popup-icon">📵</div>
                 <h3>User Busy</h3>
-                <p>User busy in another call</p>
+                <p>user busy in another call</p>
                 <div className="popup-actions">
                   <button
-                    className="control-btn ok-btn"
+                    className="ok-btn"
                     onClick={() => {
                       setUserBusy(false);
                       setVideoCall(false);
                     }}
                   >
-                    <i className="fas fa-check"></i> OK
+                    ok
                   </button>
                 </div>
               </div>
             </div>
           )}
+
           {callDeclined && (
             <div className="popup-overlay">
               <div className="popup call-rejected">
-                <div className="popup-icon"><i className="fas fa-times"></i></div>
+                <div className="popup-icon">❌</div>
                 <h3>Call Declined</h3>
                 <p>{target?.username || 'The user'} declined your call</p>
                 <div className="popup-actions">
                   <button
-                    className="control-btn ok-btn"
+                    className="ok-btn"
                     onClick={() => {
                       setCallDeclined(false);
                       setTarget(null);
                       setVideoCall(false);
                     }}
                   >
-                    <i className="fas fa-check"></i> OK
+                    ok
                   </button>
                 </div>
               </div>
             </div>
           )}
+
           {callEnded && (
             <div className="popup-overlay">
               <div className="popup call-ended">
-                <div className="popup-icon"><i className="fas fa-phone-slash"></i></div>
+                <div className="popup-icon">📴</div>
                 <h3>Call Ended</h3>
-                <p>Call ended</p>
+                <p>call ended</p>
                 <div className="popup-actions">
                   <button
-                    className="control-btn ok-btn"
+                    className="ok-btn"
                     onClick={() => {
                       setCallEnded(false);
                       setVideoCall(false);
                     }}
                   >
-                    <i className="fas fa-check"></i> OK
+                    ok
                   </button>
                 </div>
               </div>
