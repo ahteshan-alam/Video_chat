@@ -491,96 +491,92 @@ function Home() {
       </div>
 
       {incomingcall && (
-        <div className="popup-overlay">
-          <div className="popup incoming-call">
-            {/* Added a dynamic avatar for the caller */}
-            <div className="caller-avatar">{answer?.caller.username.charAt(0)}</div>
-            <h3>Incoming Call</h3>
-            <p>
-              <span className="caller-name">{answer?.caller.username}</span> is calling...
-            </p>
-            <div className="popup-actions">
-              <button className="accept-btn">
-                <i className="fa-solid fa-phone"></i> Accept
-              </button>
-              <button className="reject-btn">
-                <i className="fa-solid fa-phone-slash"></i> Reject
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+  <div className="popup-overlay">
+    <div className="popup incoming-call">
+      <div className="caller-avatar">{answer?.caller.username.charAt(0)}</div>
+      <h3>Incoming Call</h3>
+      <p>
+        <span className="caller-name">{answer?.caller.username}</span> is calling...
+      </p>
+      <div className="popup-actions">
+        <button className="accept-btn">
+          <i className="fa-solid fa-phone"></i> Accept
+        </button>
+        <button className="reject-btn">
+          <i className="fa-solid fa-phone-slash"></i> Reject
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
-      {isCalling && (
-        <div className="popup-overlay">
-          <div className="popup calling">
-            <div className="caller-avatar">{target?.username.charAt(0)}</div>
-            <h3>Calling...</h3>
-            <p>
-              Ringing <span className="target-name">{target?.username}</span>
-            </p>
-            <div className="popup-actions">
-              <button className="cancel-btn" onClick={handleCancelCall}>
-                <i className="fa-solid fa-phone-slash"></i> Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+{isCalling && (
+  <div className="popup-overlay">
+    <div className="popup calling">
+      <div className="caller-avatar">{target?.username.charAt(0)}</div>
+      <h3>Calling...</h3>
+      <p>
+        Ringing <span className="target-name">{target?.username}</span>
+      </p>
+      <div className="popup-actions">
+        <button className="cancel-btn" onClick={handleCancelCall}>
+          <i className="fa-solid fa-phone-slash"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
-      {userBusy && (
-        <div className="popup-overlay">
-          <div className="popup">
-            {/* Replaced emoji with a modern icon */}
-            <div className="popup-icon warning">
-                <i className="fa-solid fa-user-slash"></i>
-            </div>
-            <h3>User Busy</h3>
-            <p>The user is currently in another call.</p>
-            <div className="popup-actions">
-              <button className="ok-btn" onClick={() => { setUserBusy(false); setVideoCall(false); }}>
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+{userBusy && (
+  <div className="popup-overlay">
+    <div className="popup">
+      <div className="popup-icon warning">
+        <i className="fa-solid fa-user-slash"></i>
+      </div>
+      <h3>User Busy</h3>
+      <p>The user is currently in another call.</p>
+      <div className="popup-actions">
+        <button className="ok-btn" onClick={() => { setUserBusy(false); setVideoCall(false); }}>
+          OK
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
-      {callDeclined && (
-        <div className="popup-overlay">
-          <div className="popup">
-            {/* Replaced emoji with a modern icon */}
-            <div className="popup-icon error">
-                <i className="fa-solid fa-ban"></i>
-            </div>
-            <h3>Call Declined</h3>
-            <p>{target?.username || 'The user'} declined your call.</p>
-            <div className="popup-actions">
-              <button className="ok-btn" onClick={() => { setCallDeclined(false); setTarget(null); setVideoCall(false); }}>
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+{callDeclined && (
+  <div className="popup-overlay">
+    <div className="popup">
+      <div className="popup-icon error">
+        <i className="fa-solid fa-ban"></i>
+      </div>
+      <h3>Call Declined</h3>
+      <p>{target?.username || 'The user'} declined your call.</p>
+      <div className="popup-actions">
+        <button className="ok-btn" onClick={() => { setCallDeclined(false); setTarget(null); setVideoCall(false); }}>
+          OK
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
-      {callEnded && (
-        <div className="popup-overlay">
-          <div className="popup">
-            {/* Replaced emoji with a modern icon */}
-            <div className="popup-icon success">
-                <i className="fa-solid fa-circle-check"></i>
-            </div>
-            <h3>Call Ended</h3>
-            <p>Your call has ended.</p>
-            <div className="popup-actions">
-              <button className="ok-btn" onClick={() => { setCallEnded(false); setVideoCall(false); }}>
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+{callEnded && (
+  <div className="popup-overlay">
+    <div className="popup">
+      <div className="popup-icon success">
+        <i className="fa-solid fa-circle-check"></i>
+      </div>
+      <h3>Call Ended</h3>
+      <p>Your call has ended.</p>
+      <div className="popup-actions">
+        <button className="ok-btn" onClick={() => { setCallEnded(false); setVideoCall(false); }}>
+          OK
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   )}
     </div>
