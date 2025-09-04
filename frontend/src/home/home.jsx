@@ -305,7 +305,7 @@ function Home() {
     } catch (error) {
       console.error('Error in createAnswer:', error);
       alert('Failed to accept call. Camera and microphone access is required.');
-      handleRejectCall()
+      setIncomingcall(false);
     }
   };
 
