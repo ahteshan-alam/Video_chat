@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import './home.css';
 import { io } from 'socket.io-client';
 import ScrollToBottom from 'react-scroll-to-bottom';
-import Message from '../message/message';// Assuming Message component is defined elsewhere
+import Message from '../message/message';
 
 const configuration = {
   iceServers: [
@@ -57,16 +57,13 @@ function Home() {
 
   const handleChange = (e) => {
     setMessage(e.target.value);
-
     if (!isTyping) {
       setIsTyping(true);
       socket.current.emit('typing', { username, room });
     }
-
     if (typingTimeout.current) {
       clearTimeout(typingTimeout.current);
     }
-
     typingTimeout.current = setTimeout(() => {
       setIsTyping(false);
       socket.current.emit('typing', { username: '', room });
@@ -76,11 +73,9 @@ function Home() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setIsTyping(false);
-
     if (typingTimeout.current) {
       clearTimeout(typingTimeout.current);
     }
-
     socket.current.emit('typing', { username: '', room });
     socket.current.emit('message', { message, username });
     setMessage('');
@@ -128,89 +123,110 @@ function Home() {
     });
 
     socket.current.on('offer', async (payload) => {
-      console.log(`offer received from ${payload.caller.id} to ${payload.target}`);
+      console.log('Offer event triggered:', JSON.stringify(payload, null, 2));
+      if (!payload || !payload.sdp || !payload.caller || !payload.caller.id || !payload.caller.username) {
+        console.error('Invalid offer payload:', payload);
+        return;
+      }
       if (peerConnection.current || inCall) {
+        console.log('User busy, rejecting offer. inCall:', inCall, 'peerConnection:', peerConnection.current);
         socket.current.emit('userBusy', { target: payload.caller.id });
         return;
       }
-      setVideoCall(true)
-      peerConnection.current = new RTCPeerConnection(configuration);
-      peerConnection.current.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.current.emit('ice-candidate', { target: payload.caller.id, route: event.candidate });
-        }
-      };
-      peerConnection.current.ontrack = (event) => {
-        const stream = event.streams[0];
-        if (remoteVideo.current && remoteVideo.current.srcObject !== stream) {
-          remoteVideo.current.srcObject = stream;
-          const playPromise = remoteVideo.current.play();
-          if (playPromise !== undefined) {
-            playPromise.catch((e) => console.error('Autoplay error:', e));
+
+      try {
+        setVideoCall(true);
+        peerConnection.current = new RTCPeerConnection(configuration);
+        peerConnection.current.onicecandidate = (event) => {
+          if (event.candidate) {
+            socket.current.emit('ice-candidate', { target: payload.caller.id, route: event.candidate });
           }
+        };
+        peerConnection.current.ontrack = (event) => {
+          const stream = event.streams[0];
+          if (remoteVideo.current && remoteVideo.current.srcObject !== stream) {
+            remoteVideo.current.srcObject = stream;
+            const playPromise = remoteVideo.current.play();
+            if (playPromise !== undefined) {
+              playPromise.catch((e) => console.error('Autoplay error:', e));
+            }
+          }
+        };
+
+        await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+        while (candidatesQueue.current.length) {
+          const candidate = candidatesQueue.current.shift();
+          await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
         }
-      };
-      
-      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-      while (candidatesQueue.current.length) {
-        const candidate = candidatesQueue.current.shift();
-        await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-      candidatesQueue.current = [];
-      console.log(payload)
-      if (payload.sdp) {
+        candidatesQueue.current = [];
         setIncomingcall(true);
+        setAnswer(payload);
+        console.log('Incoming call set, answer:', JSON.stringify(payload, null, 2));
+      } catch (error) {
+        console.error('Error handling offer:', error);
+        resetCall();
       }
-      setAnswer(payload);
-      console.log("sending answer")
     });
 
     socket.current.on('userBusy', ({ message }) => {
       setUserBusy(true);
       setIsCalling(false);
       setTarget(null);
-      console.log(message);
+      console.log('User busy:', message);
     });
 
     socket.current.on('answer', async (payload) => {
+      console.log('Answer received:', JSON.stringify(payload, null, 2));
+      if (!payload || !payload.sdp || !payload.caller) {
+        console.error('Invalid answer payload:', payload);
+        return;
+      }
       setCurrentUser((prev) => ({ ...prev, partner: payload.caller.id }));
       setIsCalling(false);
       setInCall(true);
       if (remoteVideo.current) {
         remoteVideo.current.srcObject = null;
       }
-      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-      while (candidatesQueue.current.length) {
-        const candidate = candidatesQueue.current.shift();
-        await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+      try {
+        await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+        while (candidatesQueue.current.length) {
+          const candidate = candidatesQueue.current.shift();
+          await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+        candidatesQueue.current = [];
+      } catch (error) {
+        console.error('Error handling answer:', error);
       }
-      candidatesQueue.current = [];
     });
 
     socket.current.on('call_declined', () => {
-      console.log('call reject');
+      console.log('Call rejected');
       resetCall();
       setCallDeclined(true);
     });
 
     socket.current.on('call_cancel', () => {
+      console.log('Call canceled');
       resetCall();
     });
 
     socket.current.on('call_ended', () => {
+      console.log('Call ended');
       setCallEnded(true);
       resetCall();
     });
 
     socket.current.on('ice-candidate', async (payload) => {
-      candidatesQueue.current.push(payload.route);
-      if (peerConnection.current && peerConnection.current.remoteDescription) {
-        while (candidatesQueue.current.length) {
-          const candidate = candidatesQueue.current.shift();
-          await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
-        }
+      console.log('ICE candidate received:', JSON.stringify(payload, null, 2));
+      if (!payload || !payload.route) {
+        console.error('Invalid ICE candidate payload:', payload);
+        return;
       }
-      console.log("recieved ice")
+      if (peerConnection.current && peerConnection.current.remoteDescription) {
+        await peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.route));
+      } else {
+        candidatesQueue.current.push(payload.route);
+      }
     });
 
     return () => {
@@ -231,6 +247,7 @@ function Home() {
   useEffect(() => {
     if (videoCall && localStream.current && localVideo.current) {
       localVideo.current.srcObject = localStream.current;
+      console.log('Local video stream set');
     }
   }, [videoCall]);
 
@@ -251,7 +268,9 @@ function Home() {
       peerConnection.current = new RTCPeerConnection(configuration);
       peerConnection.current.onicecandidate = (event) => {
         if (event.candidate) {
-          socket.current.emit('ice-candidate', { target: targetUser, route: event.candidate });
+          const candidatePayload = { target: targetUser, route: event.candidate };
+          socket.current.emit('ice-candidate', candidatePayload);
+          console.log('Sent ICE candidate:', JSON.stringify(candidatePayload, null, 2));
         }
       };
       peerConnection.current.ontrack = (event) => {
@@ -272,12 +291,13 @@ function Home() {
       const offer = await peerConnection.current.createOffer();
       await peerConnection.current.setLocalDescription(offer);
 
-      socket.current.emit('offer', {
+      const offerPayload = {
         sdp: offer,
         target: targetUser,
         caller: { username: currentUser.username, id: socket.current.id },
-      });
-      console.log('sent offer to ', targetUser);
+      };
+      socket.current.emit('offer', offerPayload);
+      console.log('Sent offer to:', targetUser, JSON.stringify(offerPayload, null, 2));
     } catch (error) {
       console.error('Error in createOffer:', error);
       alert('Failed to start call. Camera and microphone access is required.');
@@ -306,7 +326,9 @@ function Home() {
 
       const answer = await peerConnection.current.createAnswer();
       await peerConnection.current.setLocalDescription(answer);
-      socket.current.emit('answer', { target: payload.caller.id, sdp: answer, caller: currentUser });
+      const answerPayload = { target: payload.caller.id, sdp: answer, caller: currentUser };
+      socket.current.emit('answer', answerPayload);
+      console.log('Sent answer to:', payload.caller.id, JSON.stringify(answerPayload, null, 2));
     } catch (error) {
       console.error('Error in createAnswer:', error);
       alert('Failed to accept call. Camera and microphone access is required.');
@@ -319,7 +341,7 @@ function Home() {
     createAnswer({ payload: answer });
     setIncomingcall(false);
     setInCall(true);
-    console.log('call accepted');
+    console.log('Call accepted');
     setCurrentUser((prev) => ({ ...prev, partner: answer.caller.id }));
   };
 
@@ -364,6 +386,7 @@ function Home() {
     setAnswer(null);
     setVideoCall(false);
     setTarget(null);
+    console.log('Call reset');
   };
 
   const handleCancelCall = () => {
@@ -381,7 +404,7 @@ function Home() {
   const handleEnd = () => {
     resetCall();
     socket.current.emit('call_ended', { target: currentUser.partner, currentUser: currentUser.id });
-    console.log('you are ending the call');
+    console.log('Call ended by user');
   };
 
   if (isLoading) {
@@ -400,7 +423,7 @@ function Home() {
 
   return (
     <div className="chatbox">
-      {!videoCall && <div className="header">
+      <div className="header">
         <h1>ChatterBox</h1>
         <div className="online-section">
           <button className="online-count-btn" onClick={toggleOnlineUsers}>
@@ -409,9 +432,7 @@ function Home() {
           </button>
           {showOnlineUsers && (
             <div className="online-dropdown">
-              <div className="dropdown-header">
-                Online Users ({otherusers.length})
-              </div>
+              <div className="dropdown-header">Online Users ({otherusers.length})</div>
               <div className="online-users-list">
                 {otherusers.map((client) => (
                   <div key={client.id} className="online-user-item">
@@ -419,17 +440,19 @@ function Home() {
                       <span className="user-online-indicator">●</span>
                       <span className="username">{client.username}</span>
                     </div>
-                    <button className="callbtn" onClick={() => createOffer({ targetUser: client.id, user:client })}>
+                    <button
+                      className="callbtn"
+                      onClick={() => createOffer({ targetUser: client.id, user: client })}
+                    >
                       <i className="fa-solid fa-video"></i>
                     </button>
                   </div>
                 ))}
               </div>
             </div>
-          )} 
+          )}
         </div>
-      </div>}
-      {!videoCall &&
+      </div>
 
       <div className="messages-container">
         <ScrollToBottom className="messages">
@@ -442,8 +465,8 @@ function Home() {
           )}
         </ScrollToBottom>
         {typeMsg && <div className="typing-indicator">{typeMsg}</div>}
-      </div>}
-      {!videoCall &&
+      </div>
+
       <div className="footer">
         <form className="messageForm" onSubmit={handleSubmit}>
           <input
@@ -456,7 +479,7 @@ function Home() {
           />
           <button type="submit">send</button>
         </form>
-      </div>}
+      </div>
 
       {videoCall && (
         <div className="App">
@@ -562,7 +585,7 @@ function Home() {
               <div className="popup user-busy">
                 <div className="popup-icon">📵</div>
                 <h3>User Busy</h3>
-                <p>user busy in another call</p>
+                <p>User busy in another call</p>
                 <div className="popup-actions">
                   <button
                     className="ok-btn"
@@ -571,7 +594,7 @@ function Home() {
                       setVideoCall(false);
                     }}
                   >
-                    ok
+                    OK
                   </button>
                 </div>
               </div>
@@ -593,7 +616,7 @@ function Home() {
                       setVideoCall(false);
                     }}
                   >
-                    ok
+                    OK
                   </button>
                 </div>
               </div>
@@ -605,7 +628,7 @@ function Home() {
               <div className="popup call-ended">
                 <div className="popup-icon">📴</div>
                 <h3>Call Ended</h3>
-                <p>call ended</p>
+                <p>Call ended</p>
                 <div className="popup-actions">
                   <button
                     className="ok-btn"
@@ -614,7 +637,7 @@ function Home() {
                       setVideoCall(false);
                     }}
                   >
-                    ok
+                    OK
                   </button>
                 </div>
               </div>
