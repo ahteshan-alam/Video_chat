@@ -229,6 +229,41 @@ function Home() {
   }, []);
 
 
+
+  // animation by grok ai
+
+
+  useEffect(() => {
+    const localVideoEl = localVideo.current;
+    const remoteVideoEl = remoteVideo.current;
+  
+    const handleCanPlay = (containerClass) => {
+      return () => {
+        const container = document.querySelector(containerClass);
+        if (container) {
+          container.classList.add('video-loaded');
+        }
+      };
+    };
+  
+    if (localVideoEl) {
+      localVideoEl.addEventListener('canplay', handleCanPlay('.local-video-container'));
+    }
+    if (remoteVideoEl) {
+      remoteVideoEl.addEventListener('canplay', handleCanPlay('.remote-video-container'));
+    }
+  
+    return () => {
+      if (localVideoEl) {
+        localVideoEl.removeEventListener('canplay', handleCanPlay('.local-video-container'));
+      }
+      if (remoteVideoEl) {
+        remoteVideoEl.removeEventListener('canplay', handleCanPlay('.remote-video-container'));
+      }
+    };
+  }, []);
+
+
   const createOffer = async ({ targetUser, user }) => {
     try {
       setVideoCall(true);
@@ -394,95 +429,16 @@ function Home() {
   }
 
   return (
-    <div className="chatbox">
-      {!videoCall && <div className="header">
-        <h1>ChatterBox</h1>
-        <div className="online-section">
-          <button className="online-count-btn" onClick={toggleOnlineUsers}>
-            <span className="online-indicator">●</span>
-            <span>{otherusers.length} online</span>
-          </button>
-          {showOnlineUsers && (
-            <div className="online-dropdown">
-              <div className="dropdown-header">
-                Online Users ({otherusers.length})
-              </div>
-              <div className="online-users-list">
-                {otherusers.map((client) => (
-                  <div key={client.id} className="online-user-item">
-                    <div className="user-info">
-                      <span className="user-online-indicator">●</span>
-                      <span className="username">{client.username}</span>
-                    </div>
-                    <button className="callbtn" onClick={() => createOffer({ targetUser: client.id, user:client })}>
-                      <i className="fa-solid fa-video"></i>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )} 
-        </div>
-      </div>}
-      {!videoCall &&
-
-      <div className="messages-container">
-        <ScrollToBottom className="messages">
-          {messages.map((item) =>
-            item.type === 'notification' ? (
-              <h2 key={item.id} className="notification">{item.message}</h2>
-            ) : (
-              <Message key={item.id} data={item} currUserId={currUserId} />
-            ),
-          )}
-        </ScrollToBottom>
-        {typeMsg && <div className="typing-indicator">{typeMsg}</div>}
-      </div>}
-      {!videoCall &&
-      <div className="footer">
-        <form className="messageForm" onSubmit={handleSubmit}>
-          <input
-            type="text"
-            className="message"
-            value={message}
-            onChange={handleChange}
-            required
-            placeholder="Type a message..."
-          />
-          <button type="submit">send</button>
-        </form>
-      </div>}
-
-      {videoCall && (
-        <div className="App">
+    <div className="App">
+      {!videoCall && (
+        <div className="no-call">
           <header className="app-header">
             <h1>My Video Call App {currentUser.username}</h1>
           </header>
           <main className="main-content">
-            <section className="video-section">
-              <div className="video">
-                <div className="local-video-container">
-                  <video ref={localVideo} autoPlay playsInline muted></video>
-                  <div className="video-label">You</div>
-                </div>
-                <div className="remote-video-container">
-                  <video ref={remoteVideo} autoPlay playsInline></video>
-                  <div className="video-label">Remote</div>
-                </div>
-              </div>
-              <div className="video-controls">
-                <button className="muteBtn" onClick={handleAudio}>
-                  {mute ? '🔇 Unmute' : '🎤 Mute'}
-                </button>
-                <button className="muteBtn" onClick={handleVideo}>
-                  {pause ? '📹 Resume' : '📹 Pause'}
-                </button>
-                {inCall && (
-                  <button className="muteBtn end-call-btn" onClick={handleEnd}>
-                    ❌ End
-                  </button>
-                )}
-              </div>
+            <section className="no-call-section">
+              <h2>Welcome to Video Chat</h2>
+              <p>Select a user to start a call.</p>
             </section>
             <aside className="sidebar">
               <div className="list">
@@ -499,42 +455,117 @@ function Home() {
                             <span className="username">{user.username}</span>
                           </span>
                           <button
-                            className="call-btn"
+                            className="control-btn call-btn"
                             onClick={() => createOffer({ targetUser: user.id, user })}
                           >
-                            call
+                            <i className="fas fa-phone"></i> Call
                           </button>
                         </li>
                       ))
                     ) : (
-                      <li className="no-users">no users online</li>
+                      <li className="no-users">No users online</li>
                     )}
                   </ul>
                 </div>
               </div>
             </aside>
           </main>
-
+        </div>
+      )}
+      {videoCall && (
+        <div className="video-call-container">
+          <header className="app-header">
+            <h1>My Video Call App {currentUser.username}</h1>
+          </header>
+          <main className="main-content">
+            <section className="video-section">
+              <div className="video">
+                <div className="local-video-container">
+                  <video ref={localVideo} autoPlay playsInline muted></video>
+                  <div className="video-label">You</div>
+                </div>
+                <div className="remote-video-container">
+                  <video ref={remoteVideo} autoPlay playsInline></video>
+                  <div className="video-label">{target?.username || 'Remote'}</div>
+                </div>
+              </div>
+              <div className="video-controls">
+                <button className="control-btn mute-btn" onClick={handleAudio}>
+                  {mute ? (
+                    <span className="icon"><i className="fas fa-microphone-slash"></i> Unmute</span>
+                  ) : (
+                    <span className="icon"><i className="fas fa-microphone"></i> Mute</span>
+                  )}
+                </button>
+                <button className="control-btn video-btn" onClick={handleVideo}>
+                  {pause ? (
+                    <span className="icon"><i className="fas fa-video"></i> Resume</span>
+                  ) : (
+                    <span className="icon"><i className="fas fa-video-slash"></i> Pause</span>
+                  )}
+                </button>
+                {inCall && (
+                  <button className="control-btn end-call-btn" onClick={handleEnd}>
+                    <span className="icon"><i className="fas fa-phone-slash"></i> End Call</span>
+                  </button>
+                )}
+              </div>
+              {inCall && (
+                <div className="call-status">
+                  <span>Call with {target?.username || 'Remote'}</span>
+                </div>
+              )}
+            </section>
+            <aside className="sidebar">
+              <div className="list">
+                <div className="list-header">
+                  <p>Online Users ({otherusers.length})</p>
+                </div>
+                <div className="list-content">
+                  <ul>
+                    {otherusers.length > 0 ? (
+                      otherusers.map((user) => (
+                        <li key={user.id} className="user-item">
+                          <span className="user-info">
+                            <span className="online-indicator"></span>
+                            <span className="username">{user.username}</span>
+                          </span>
+                          <button
+                            className="control-btn call-btn"
+                            onClick={() => createOffer({ targetUser: user.id, user })}
+                            disabled={inCall || isCalling}
+                          >
+                            <i className="fas fa-phone"></i> Call
+                          </button>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="no-users">No users online</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </aside>
+          </main>
           {incomingcall && (
             <div className="popup-overlay">
               <div className="popup incoming-call">
-                <div className="popup-icon">📞</div>
+                <div className="popup-icon"><i className="fas fa-phone"></i></div>
                 <h3>Incoming Call</h3>
                 <p>
                   Call from <span className="caller-name">{answer?.caller.username}</span>
                 </p>
                 <div className="popup-actions">
-                  <button className="accept-btn" onClick={() => sendAnswer(answer)}>
-                    Accept
+                  <button className="control-btn accept-btn" onClick={() => sendAnswer(answer)}>
+                    <i className="fas fa-check"></i> Accept
                   </button>
-                  <button className="reject-btn" onClick={handleRejectCall}>
-                    Reject
+                  <button className="control-btn reject-btn" onClick={handleRejectCall}>
+                    <i className="fas fa-times"></i> Reject
                   </button>
                 </div>
               </div>
             </div>
           )}
-
           {isCalling && (
             <div className="popup-overlay">
               <div className="popup calling">
@@ -544,72 +575,69 @@ function Home() {
                   Calling <span className="target-name">{target?.username}</span>
                 </p>
                 <div className="popup-actions">
-                  <button className="cancel-btn" onClick={handleCancelCall}>
-                    cancel
+                  <button className="control-btn cancel-btn" onClick={handleCancelCall}>
+                    <i className="fas fa-times"></i> Cancel
                   </button>
                 </div>
               </div>
             </div>
           )}
-
           {userBusy && (
             <div className="popup-overlay">
               <div className="popup user-busy">
-                <div className="popup-icon">📵</div>
+                <div className="popup-icon"><i className="fas fa-user-slash"></i></div>
                 <h3>User Busy</h3>
-                <p>user busy in another call</p>
+                <p>User busy in another call</p>
                 <div className="popup-actions">
                   <button
-                    className="ok-btn"
+                    className="control-btn ok-btn"
                     onClick={() => {
                       setUserBusy(false);
                       setVideoCall(false);
                     }}
                   >
-                    ok
+                    <i className="fas fa-check"></i> OK
                   </button>
                 </div>
               </div>
             </div>
           )}
-
           {callDeclined && (
             <div className="popup-overlay">
               <div className="popup call-rejected">
-                <div className="popup-icon">❌</div>
+                <div className="popup-icon"><i className="fas fa-times"></i></div>
                 <h3>Call Declined</h3>
                 <p>{target?.username || 'The user'} declined your call</p>
                 <div className="popup-actions">
                   <button
-                    className="ok-btn"
+                    className="control-btn ok-btn"
                     onClick={() => {
                       setCallDeclined(false);
                       setTarget(null);
                       setVideoCall(false);
                     }}
                   >
-                    ok
+                    <i className="fas fa-check"></i> OK
                   </button>
                 </div>
               </div>
             </div>
           )}
-
           {callEnded && (
             <div className="popup-overlay">
               <div className="popup call-ended">
-                <div className="popup-icon">📴</div>
+                <div className="popup-icon"><i className="fas fa-phone-slash"></i></div>
                 <h3>Call Ended</h3>
-                <p>call ended</p>
+                <p>Call ended</p>
                 <div className="popup-actions">
                   <button
-                    className="ok-btn"
+                    className="control-btn ok-btn"
                     onClick={() => {
                       setCallEnded(false);
                       setVideoCall(false);
                     }}
                   >
-                    ok
+                    <i className="fas fa-check"></i> OK
                   </button>
                 </div>
               </div>
