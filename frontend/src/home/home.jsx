@@ -194,7 +194,9 @@ function Home() {
     });
 
     socket.current.on('call_cancel', () => {
+      
       resetCall();
+      setVideoCall(false)
     });
 
     socket.current.on('call_ended', () => {
