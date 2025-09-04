@@ -34,6 +34,7 @@ function Home() {
   let [inCall, setInCall] = useState(false)
   let [callDeclined, setCallDeclined] = useState(false)
   let [callEnded, setCallEnded] = useState(false)
+  let [videoCall,setVideoCall]=useState(false)
   const candidatesQueue = useRef([]);
   const location = useLocation()
   const formData = location.state?.formData
@@ -50,10 +51,8 @@ function Home() {
       navigate("/")
       return;
     }
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then((stream) => {
-        localVideo.current.srcObject = stream
-        localStream.current = stream
+    
+        
         socket.current = io("https://video-chat-9zhu.onrender.com/");
         socket.current.on('connect', () => {
           setCurrentUser({ username: formData.username, id: socket.current.id })
@@ -76,6 +75,7 @@ function Home() {
         })
 
         socket.current.on('offer', async (payload) => {
+          setVideoCall(true)
           console.log(`offer recieved from ${payload.caller.id} to ${payload.target}`)
           if (peerConnection.current || inCall) {
             socket.current.emit("userBusy", { target: payload.caller.id });
@@ -168,14 +168,10 @@ function Home() {
 
 
         }
-      })
-      .catch(
-        (error)=>{
-          alert("Camera and microphone access is required to use the app.");
-          navigate("/")
-        },
+      
+      
         
-      )
+ 
 
 
 
@@ -183,12 +179,18 @@ function Home() {
 
 
   }, [])
+  useEffect(()=>{
+
+
+  },[])
 
   const createOffer = async ({ targetUser, user }) => {
+    setVideoCall(true)
     setTarget(user)
 
     console.log("sending offer to ", targetUser)
     setIsCalling(true)
+    try{
     if (!localStream.current) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
       localStream.current = stream
@@ -219,12 +221,21 @@ function Home() {
     await peerConnection.current.setLocalDescription(offer)
 
     socket.current.emit('offer', { sdp: offer, target: targetUser, caller: { username: currentUser.username, id: socket.current.id } })
-    console.log("sent offer to ", targetUser)
+    console.log("sent offer to ", targetUser)}
+    catch(error){
+      setVideoCall(false)
+      setIsCalling(false)
+      setTarget(null)
+      alert("call cannot be completed")
+      navigate("/")
+      return
+    }
 
 
   }
   const createAnswer = async ({ payload }) => {
     setCurrentUser(prev => ({ ...prev, partner: payload.caller.id }))
+    try{
     if (!localStream.current) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
       localStream.current = stream
@@ -239,7 +250,13 @@ function Home() {
     const answer = await peerConnection.current.createAnswer()
     await peerConnection.current.setLocalDescription(answer)
     socket.current.emit('answer', { target: payload.caller.id, sdp: answer, caller: currentUser })
-
+  }
+  catch (error) {
+    console.error('Error in createAnswer:', error);
+    alert('Failed to accept call. Camera and microphone access is required.');
+    setIncomingcall(false);
+    setVideoCall(false)
+  }
   }
   const sendAnswer = (answer) => {
 

@@ -228,11 +228,6 @@ function Home() {
     };
   }, []);
 
-  useEffect(() => {
-    if (videoCall && localStream.current && localVideo.current) {
-      localVideo.current.srcObject = localStream.current;
-    }
-  }, [videoCall]);
 
   const createOffer = async ({ targetUser, user }) => {
     try {
@@ -311,6 +306,7 @@ function Home() {
       console.error('Error in createAnswer:', error);
       alert('Failed to accept call. Camera and microphone access is required.');
       setIncomingcall(false);
+      setVideoCall(false)
     }
   };
 
