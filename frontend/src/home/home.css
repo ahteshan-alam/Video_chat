@@ -2260,3 +2260,248 @@ body::before {
       height: 1.8em;
   }
 }
+/* --- Google Font Import --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+
+/* --- CSS Variables and Root Styles --- */
+:root {
+  --background-dark: #1F2026;
+  --background-light: #282A34;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --text-primary: #FFFFFF;
+  --text-secondary: #A0A1B2;
+  --accent-primary: #00C4A1; /* Teal/Cyan Accent */
+  --accent-red: #EA4335;
+}
+
+/* --- Main Video Call Wrapper --- */
+.video-call-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--background-dark);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Subtle background pattern from the image */
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* --- Header --- */
+.video-call-header {
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  z-index: 30;
+  flex-shrink: 0; /* Prevents header from shrinking */
+}
+.video-call-header h1 {
+  font-size: 1.2rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.header-icons {
+  display: flex;
+  gap: 1rem;
+  color: var(--text-secondary);
+}
+
+/* --- Video Containers --- */
+.video-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.remote-video-view,
+.local-video-view {
+  position: absolute;
+  overflow: hidden;
+  background-color: #111;
+  border-radius: 24px;
+  border: 2px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.remote-video-view {
+  width: calc(100% - 2rem);
+  height: calc(100% - 2rem);
+  top: 1rem;
+  left: 1rem;
+}
+
+.local-video-view {
+  width: 240px;
+  aspect-ratio: 4 / 3; /* Ensures video proportions are maintained */
+  height: auto; /* Height is determined by aspect-ratio */
+  bottom: 110px;
+  right: 2.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+}
+.local-video-view:hover {
+  border-color: var(--accent-primary);
+}
+
+/* This is crucial: ensures the video tag respects the container's shape */
+.remote-video-view > video,
+.local-video-view > video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.video-label {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: var(--text-primary);
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  backdrop-filter: blur(5px);
+}
+
+/* --- Overlaid Video Controls --- */
+.video-controls {
+  position: absolute;
+  bottom: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background-color: var(--background-light);
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid var(--border-color);
+}
+
+.control-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.control-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.end-call-btn {
+  background-color: var(--accent-red);
+  color: var(--text-primary);
+  border-radius: 16px;
+  font-size: 1.4rem;
+}
+.end-call-btn:hover {
+  background-color: #d63021;
+  color: var(--text-primary);
+}
+
+/* --- General Popup Styling (Dark Theme) --- */
+.popup-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+}
+.popup {
+  background-color: var(--background-light);
+  color: var(--text-primary);
+  padding: 30px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  text-align: center;
+  width: 90%;
+  max-width: 380px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.popup-icon { font-size: 2.5rem; margin-bottom: 15px; }
+.popup h3 { margin-top: 0; margin-bottom: 10px; font-size: 1.5rem; }
+.popup p { margin-top: 0; margin-bottom: 25px; color: var(--text-secondary); line-height: 1.5; }
+.popup .caller-name, .popup .target-name { font-weight: bold; color: var(--text-primary); }
+.popup-actions { display: flex; justify-content: center; gap: 15px; }
+.popup-actions button { border: none; padding: 12px 24px; border-radius: 10px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: opacity 0.2s; }
+.popup-actions button:hover { opacity: 0.85; }
+.accept-btn { background-color: var(--accent-primary); color: white; }
+.reject-btn, .cancel-btn { background-color: var(--accent-red); color: white; }
+.ok-btn { background-color: #4A4D5E; color: white; }
+
+/* --- Calling Spinner Animation --- */
+.calling-spinner {
+  width: 50px; height: 50px; border: 5px solid var(--background-light);
+  border-top-color: var(--accent-primary); border-radius: 50%;
+  margin: 0 auto 20px auto; animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(30deg); } }
+
+/*
+======================================================
+--- CRITICAL: Mobile Responsiveness ---
+======================================================
+*/
+@media (max-width: 768px) {
+  .video-call-header h1 {
+    font-size: 1rem;
+  }
+
+  /* Shrink the picture-in-picture window on mobile */
+  .local-video-view {
+    width: 120px; /* Significantly smaller */
+    bottom: 95px;  /* Adjust position for new control bar height */
+    right: 1rem;
+  }
+
+  /* Adjust controls for smaller screens */
+  .video-controls {
+    bottom: 20px;
+    padding: 8px;
+    gap: 8px;
+  }
+  .control-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1rem;
+  }
+  .end-call-btn {
+    font-size: 1.2rem;
+  }
+
+  .popup {
+    padding: 25px;
+  }
+  .popup h3 {
+    font-size: 1.3rem;
+  }
+}
