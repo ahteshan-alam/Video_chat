@@ -634,7 +634,7 @@ function Home() {
                     className="ok-btn"
                     onClick={() => {
                       setCallEnded(false);
-                      setVideoCall(false);
+                      resetCall();
                     }}
                   >
                     OK
