@@ -2262,6 +2262,8 @@ body::before {
 }
 /* --- Google Font Import --- */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+
+/* --- CSS Variables and Root Styles --- */
 :root {
   --background-dark: #1F2026;
   --background-light: #282A34;
@@ -2290,7 +2292,6 @@ body::before {
     linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
   background-size: 40px 40px;
-  transition: all 0.3s ease-out; /* Add transition for smooth minimizing */
 }
 
 /* --- Video Containers --- */
@@ -2394,89 +2395,211 @@ body::before {
   color: var(--text-primary);
 }
 
-/* ... (Keep all your existing popup and responsive styles here) ... */
+/* --- General Popup Styling (Dark Theme) --- */
+.popup-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+}
+.popup {
+  background-color: var(--background-light);
+  color: var(--text-primary);
+  padding: 30px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  text-align: center;
+  width: 90%;
+  max-width: 380px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.popup-icon { font-size: 2.5rem; margin-bottom: 15px; }
+.popup h3 { margin-top: 0; margin-bottom: 10px; font-size: 1.5rem; }
+.popup p { margin-top: 0; margin-bottom: 25px; color: var(--text-secondary); line-height: 1.5; }
+.popup .caller-name, .popup .target-name { font-weight: bold; color: var(--text-primary); }
+.popup-actions { display: flex; justify-content: center; gap: 15px; }
+.popup-actions button { border: none; padding: 12px 24px; border-radius: 10px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: opacity 0.2s; }
+.popup-actions button:hover { opacity: 0.85; }
+.accept-btn { background-color: var(--accent-primary); color: white; }
+.reject-btn, .cancel-btn { background-color: var(--accent-red); color: white; }
+.ok-btn { background-color: #4A4D5E; color: white; }
+.calling-spinner {
+  width: 50px; height: 50px; border: 5px solid var(--background-light);
+  border-top-color: var(--accent-primary); border-radius: 50%;
+  margin: 0 auto 20px auto; animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /*
 ======================================================
---- NEW: Minimized & Draggable Video Call Styles ---
+--- CRITICAL: Mobile Responsiveness ---
+======================================================
+*/
+@media (max-width: 768px) {
+  .local-video-view {
+    width: 120px;
+    bottom: 95px;
+    right: 1rem;
+  }
+  .video-controls {
+    bottom: 20px;
+    padding: 8px;
+    gap: 8px;
+  }
+  .control-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1rem;
+  }
+  .end-call-btn { font-size: 1.2rem; }
+  .popup { padding: 25px; }
+  .popup h3 { font-size: 1.3rem; }
+}
+/*
+======================================================
+--- OPTIMIZED: Tablet & Mobile Responsiveness ---
 ======================================================
 */
 
-/*
- * This class is added by React to turn the full-screen view 
- * into a small, draggable box.
- */
-.video-call-wrapper.minimized {
-  /* Change from 100% to a fixed size */
-  width: 320px;
-  height: 180px; /* 16:9 aspect ratio */
+/* --- Tablet Devices (Up to 1024px) --- */
+@media (max-width: 1024px) {
+  .local-video-view {
+    /* Increased from mobile size for a better tablet view */
+    width: 200px; 
+    right: 1.5rem;
+    bottom: 100px;
+  }
+}
 
-  /* The position is now controlled by React's state via inline styles,
-     but we can keep 'z-index' and styling here. */
-  z-index: 999; 
+/* --- Mobile Devices (Up to 600px) --- */
+@media (max-width: 600px) {
+  /* Give the main video more screen real estate */
+  .video-container {
+    padding: 0.5rem;
+  }
+  .remote-video-view {
+    width: calc(100% - 1rem);
+    height: calc(100% - 1rem);
+    top: 0.5rem;
+    left: 0.5rem;
+  }
+
+  .local-video-view {
+    /* Increased from the old 120px to 150px as requested */
+    width: 150px; 
+    bottom: 85px; /* Adjust position for smaller controls */
+    right: 1rem;
+  }
+
+  .video-label {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+  }
+
+  .video-controls {
+    bottom: 15px;
+    padding: 8px;
+    gap: 8px;
+  }
   
-  /* Styling for the minimized window */
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-  border: 2px solid var(--border-color);
-  
-  /* Cursor indicates this box can be moved */
-  cursor: grab;
-  
-  /* Turn off the background grid pattern */
-  background-image: none;
-}
+  .control-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1rem;
+  }
 
+  .end-call-btn {
+    font-size: 1.2rem;
+  }
+
+  .popup {
+    padding: 25px;
+  }
+
+  .popup h3 {
+    font-size: 1.3rem;
+  }
+}
 /*
- * This class is added by React ONLY when you are actively dragging.
- * It changes the cursor to show you're "holding" the window.
- */
-.video-call-wrapper.minimized.dragging {
-  cursor: grabbing;
-  user-select: none; /* Prevents text selection while dragging */
-  border-color: var(--accent-primary); /* Highlight border */
+======================================================
+--- ENHANCED POPUP STYLES ---
+======================================================
+*/
+
+/* --- Subtle entrance animation for all popups --- */
+@keyframes popup-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-/* --- Adjustments for elements INSIDE the minimized view --- */
-
-/* Hide the small local video when minimized */
-.video-call-wrapper.minimized .local-video-view {
-  display: none;
+.popup {
+  animation: popup-fade-in 0.3s ease-out forwards;
 }
 
-/* Make the main remote video fill the new, smaller container */
-.video-call-wrapper.minimized .remote-video-view {
-  position: static;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  border: none;
-  padding: 0;
+/* --- Caller Avatar Styling --- */
+.caller-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: var(--accent-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin: 0 auto 15px auto;
+  text-transform: uppercase;
 }
 
-.video-call-wrapper.minimized .remote-video-view > video {
-  border-radius: inherit;
+/* --- Modern Icon Styling --- */
+.popup-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  margin: 0 auto 15px auto;
 }
 
-/* Hide controls by default in minimized mode... */
-.video-call-wrapper.minimized .video-controls {
-  opacity: 0;
-  visibility: hidden;
-  transform: translate(-50%, 20px);
-  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+/* Semantic colors for icons */
+.popup-icon.success {
+  background-color: var(--accent-primary);
+}
+.popup-icon.warning {
+  background-color: #f39c12; /* Orange for warning */
+}
+.popup-icon.error {
+  background-color: var(--accent-red);
 }
 
-/* ...and show them only on hover */
-.video-call-wrapper.minimized:hover .video-controls {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%);
+/* --- Improved Button Styling --- */
+.popup-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
 }
 
-/*
- * We use CSS to change the icon on the minimize button to an 'expand' icon
- * when the component is in the minimized state.
- */
-.video-call-wrapper.minimized #minimize-btn .fa-compress-alt::before {
-  content: "\f065"; /* This is the Font Awesome unicode for the "expand" icon */
+/* Gives buttons a nice "press" effect */
+.popup-actions button:active {
+  transform: scale(0.97);
+}
+
+.accept-btn,
+.reject-btn {
+  flex: 1; /* Makes buttons take up equal space */
+  font-size: 1rem;
 }
